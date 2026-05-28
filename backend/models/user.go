@@ -12,6 +12,6 @@ type User struct {
 	Password    string        `gorm:"not null"`
 	Role        enum.UserRole `gorm:"default:customer"`
 	UserAddress string        `gorm:"not null"`
-	Created_at  time.Time
-	Updated_at  time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }

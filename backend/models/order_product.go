@@ -15,6 +15,6 @@ type OrderProduct struct {
 	TotalPrice   int64
 	ShippingCost int64
 	StatusOrder  enum.StatusOrder `gorm:"default:pending"`
-	Created_at   time.Time
-	Updated_at   time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }

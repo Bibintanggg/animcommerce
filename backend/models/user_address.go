@@ -12,6 +12,6 @@ type UserAddress struct {
 	City         string `gorm:"type:varchar(100)"`
 	PostalCode   string `gorm:"type:varchar(10)"`
 	IsDefault    bool   `gorm:"default:false"`
-	Created_at   time.Time
-	Updated_at   time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }

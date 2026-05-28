@@ -11,6 +11,6 @@ type Payment struct {
 	PaymentMethod string `gorm:"varchar(30)"`
 	Amount        int64
 	PaymentStatus enum.PaymentStatus `gorm:"default:pending"`
-	Created_at    time.Time
-	Updated_at    time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }

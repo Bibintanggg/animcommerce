@@ -1,12 +1,13 @@
 package database
 
 import (
-	"animcommerce/backend/config"
 	"animcommerce/backend/models"
+
+	"gorm.io/gorm"
 )
 
-func MigrateDB() {
-	config.DB.AutoMigrate(
+func MigrateDB(db *gorm.DB) {
+	db.AutoMigrate(
 		&models.CartProduct{},
 		&models.OrderItem{},
 		&models.OrderProduct{},

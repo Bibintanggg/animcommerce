@@ -9,6 +9,6 @@ type OrderItem struct {
 	Product    Product `gorm:"foreignKey:ProductID"`
 	Quantity   int64
 	Price      int64
-	Created_at time.Time
-	Updated_at time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

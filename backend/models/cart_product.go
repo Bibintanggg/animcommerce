@@ -9,6 +9,6 @@ type CartProduct struct {
 	ProductID  int64
 	Product    Product `gorm:"foreignKey:ProductID"`
 	Quantity   int     `gorm:"not null"`
-	Created_at time.Time
-	Updated_at time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
