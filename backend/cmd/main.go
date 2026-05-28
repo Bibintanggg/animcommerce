@@ -3,20 +3,18 @@ package main
 import (
 	"animcommerce/backend/config"
 	"animcommerce/backend/database"
-	"net/http"
+	"animcommerce/backend/routes"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	config.ConnectDB()
-	database.MigrateDB()
+	db := config.ConnectDB()
+	database.MigrateDB(db)
 
 	r := gin.Default()
 
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "API Start",
-		})
-	})
+	routes.SetupRoutes(r, db)
+
+	r.Run(":8080")
 }
