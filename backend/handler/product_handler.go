@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"animcommerce/backend/dto"
 	"animcommerce/backend/models"
 	"net/http"
 
@@ -57,16 +58,35 @@ func (h *ProductHandler) GetProductDetails(c *gin.Context) {
 }
 
 func (h *ProductHandler) CreateProduct(c *gin.Context) {
-	var product models.Product
+	var request dto.CreateProductRequest
 
-	err := c.ShouldBindJSON(&product)
+	err := c.ShouldBindJSON(&request)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
 		})
+		return
 	}
 
+	// userID, exists := c.Get("user_id")
+
+	// if !exists {
+	// 	c.JSON(http.StatusUnauthorized, gin.H{
+	// 		"message": "Unauthorized",
+	// 	})
+	// 	return
+	// }
+
+	product := models.Product{
+		UserID:      1,
+		Title:       request.Title,
+		Thumbnail:   request.Thumbnail,
+		Slug:        request.Slug,
+		Description: request.Description,
+		Price:       request.Price,
+		Stock:       request.Stock,
+	}
 	err = h.DB.Create(&product).Error
 
 	if err != nil {
