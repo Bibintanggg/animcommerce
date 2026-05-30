@@ -2,6 +2,9 @@ package routes
 
 import (
 	"animcommerce/backend/handler"
+	"animcommerce/backend/middleware"
+	"animcommerce/backend/repository"
+	"animcommerce/backend/service"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -9,21 +12,33 @@ import (
 
 func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
-	productHandler := handler.NewProductHandler(db)
-	userHandler := handler.NewUserHandler(db)
-	loginHandler := handler.NewLoginHandler(db)
+	loginRepository := repository.NewLoginRepository(db)
+	loginService := service.NewLoginService(loginRepository)
+	loginHandler := handler.NewLoginHandler(loginService)
+
+	productRepository := repository.NewProductRepository(db)
+	productService := service.NewProductService(productRepository)
+	productHandler := handler.NewProductHandler(productService)
+
+	userRepository := repository.NewUserRepository(db)
+	userService := service.NewUserService(userRepository)
+	userHandler := handler.NewUserHandler(userService)
 
 	api := r.Group("/api")
 	{
 		api.POST("/login", loginHandler.Login)
 
-		api.GET("/products", productHandler.GetProducts)
-		api.GET("/product-details/:slug", productHandler.GetProductDetails)
-		api.POST("/products", productHandler.CreateProduct)
-		api.PUT("products/:id", productHandler.UpdateProduct)
-		api.DELETE("/products/:id", productHandler.DeleteProduct)
+		auth := api.Group("/")
+		auth.Use(middleware.AuthMiddleware())
+		{
+			auth.GET("/products", productHandler.GetProducts)
+			auth.GET("/product-details/:slug", productHandler.GetProductDetails)
+			auth.POST("/products", productHandler.CreateProduct)
+			auth.PUT("/products/:id", productHandler.UpdateProduct)
+			auth.DELETE("/products/:id", productHandler.DeleteProduct)
 
-		api.GET("/users", userHandler.GetAllUser)
-		api.POST("/users", userHandler.CreateUser)
+			auth.GET("/users", userHandler.GetAllUser)
+			auth.POST("/users", userHandler.CreateUser)
+		}
 	}
 }

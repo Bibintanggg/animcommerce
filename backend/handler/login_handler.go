@@ -2,30 +2,29 @@ package handler
 
 import (
 	"animcommerce/backend/dto"
-	"animcommerce/backend/helper"
-	"animcommerce/backend/models"
 	"net/http"
+
+	"animcommerce/backend/service"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type LoginHandler struct {
-	DB *gorm.DB
+	DB      *gorm.DB
+	Service service.LoginService
 }
 
-func NewLoginHandler(db *gorm.DB) *LoginHandler {
+func NewLoginHandler(service service.LoginService) *LoginHandler {
 	return &LoginHandler{
-		DB: db,
+		Service: service,
 	}
 }
 
 func (h *LoginHandler) Login(c *gin.Context) {
-	var user models.User
-	var req dto.LoginRequest
+	var request dto.LoginRequest
 
-	err := c.ShouldBindJSON(&req)
-
+	err := c.ShouldBindJSON(&request)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -33,25 +32,10 @@ func (h *LoginHandler) Login(c *gin.Context) {
 		return
 	}
 
-	err = h.DB.Where("email = ?", req.Email).First(&user).Error
+	token, err := h.Service.Login(request)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Invalid Email",
-		})
-		return
-	}
-
-	if user.Password != req.Password {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Invalid Password",
-		})
-		return
-	}
-
-	token, err := helper.GenerateToken(user.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed generate token",
+			"message": "Unauthorized",
 		})
 		return
 	}

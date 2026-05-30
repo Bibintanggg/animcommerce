@@ -2,25 +2,25 @@ package handler
 
 import (
 	"animcommerce/backend/models"
+	"animcommerce/backend/service"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type UserHandler struct {
-	DB *gorm.DB
+	service service.UserService
 }
 
-func NewUserHandler(db *gorm.DB) *UserHandler {
+func NewUserHandler(service service.UserService) *UserHandler {
 	return &UserHandler{
-		DB: db,
+		service: service,
 	}
 }
 
 func (h *UserHandler) GetAllUser(c *gin.Context) {
-	var user []models.User
-	err := h.DB.Preload("User").Find(&user).Error
+
+	users, err := h.service.GetAllUser()
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -31,32 +31,32 @@ func (h *UserHandler) GetAllUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success get users",
-		"data":    user,
+		"data":    users,
 	})
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
+
 	var user models.User
 
-	err := c.ShouldBindJSON(&user)
-	if err != nil {
+	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
 		})
 		return
 	}
 
-	err = h.DB.Create(&user).Error
+	result, err := h.service.CreateUser(user)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed create product",
+			"message": "Failed create user",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success create user",
-		"data":    user,
+		"data":    result,
 	})
 }
