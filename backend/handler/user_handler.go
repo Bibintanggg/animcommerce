@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"animcommerce/backend/dto"
 	"animcommerce/backend/models"
+	"animcommerce/backend/models/enum"
 	"animcommerce/backend/service"
 	"net/http"
 
@@ -37,13 +39,22 @@ func (h *UserHandler) GetAllUser(c *gin.Context) {
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
 
-	var user models.User
+	var req dto.CreateUserRequest
 
-	if err := c.ShouldBindJSON(&user); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
 		})
+		c.Abort()
 		return
+	}
+
+	user := models.User{
+		Name:        req.Name,
+		Email:       req.Email,
+		Password:    req.Password,
+		UserAddress: req.UserAddress,
+		Role:        enum.UserRole(req.Role),
 	}
 
 	result, err := h.service.CreateUser(user)

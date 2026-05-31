@@ -17,6 +17,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"message": "Unauthorized",
 			})
+			c.Abort()
 			return
 		}
 

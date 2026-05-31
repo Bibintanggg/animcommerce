@@ -24,6 +24,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	userService := service.NewUserService(userRepository)
 	userHandler := handler.NewUserHandler(userService)
 
+	cartRepository := repository.NewCartRepository(db)
+	cartService := service.NewCartService(cartRepository)
+	cartHandler := handler.NewCartHandler(cartService)
+
 	api := r.Group("/api")
 	{
 		api.POST("/login", loginHandler.Login)
@@ -39,6 +43,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 			auth.GET("/users", userHandler.GetAllUser)
 			auth.POST("/users", userHandler.CreateUser)
+
+			auth.GET("/cart", cartHandler.GetCart)
+			auth.POST("/cart", cartHandler.AddToCart)
+			auth.PUT("/cart/:id", cartHandler.UpdateQuantity)
+			auth.DELETE("/cart/:id", cartHandler.RemoveItem)
 		}
 	}
 }
