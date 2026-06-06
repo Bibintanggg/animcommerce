@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"animcommerce/backend/dto"
+	dto "animcommerce/backend/dto/cart"
 	"animcommerce/backend/service"
 	"net/http"
 	"strconv"

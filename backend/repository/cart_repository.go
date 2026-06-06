@@ -57,7 +57,6 @@ func (r *cartRepository) DeleteItem(cartID int64, productID int64) error {
 func (r *cartRepository) GetCartItems(cartID int64) ([]models.CartProduct, error) {
 	var items []models.CartProduct
 
-	err := r.db.Where("cart_id = ?", cartID).Find(&items).Error
-
+	err := r.db.Preload("Product").Preload("Product.User").Where("cart_id = ?", cartID).Find(&items).Error
 	return items, err
 }

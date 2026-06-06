@@ -25,7 +25,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	userHandler := handler.NewUserHandler(userService)
 
 	cartRepository := repository.NewCartRepository(db)
-	cartService := service.NewCartService(cartRepository)
+	cartService := service.NewCartService(
+		cartRepository,
+		productRepository,
+	)
 	cartHandler := handler.NewCartHandler(cartService)
 
 	api := r.Group("/api")

@@ -1,7 +1,7 @@
 package service
 
 import (
-	"animcommerce/backend/dto"
+	dto "animcommerce/backend/dto/products"
 	"animcommerce/backend/models"
 	"animcommerce/backend/models/enum"
 	"animcommerce/backend/repository"
@@ -12,8 +12,8 @@ type ProductService interface {
 	GetProducts() ([]models.Product, error)
 	GetProductDetails(slug string) (models.Product, error)
 	CreateProduct(userID int64, request dto.CreateProductRequest) (dto.ProductResponse, error)
-	UpdateProduct(id string, request dto.UpdateProductRequest) (models.Product, error)
-	DeleteProduct(id string) error
+	UpdateProduct(id int64, request dto.UpdateProductRequest) (models.Product, error)
+	DeleteProduct(id int64) error
 }
 
 type productService struct {
@@ -76,7 +76,7 @@ func (s *productService) CreateProduct(userID int64, request dto.CreateProductRe
 	return response, nil
 }
 
-func (s *productService) UpdateProduct(id string, request dto.UpdateProductRequest) (models.Product, error) {
+func (s *productService) UpdateProduct(id int64, request dto.UpdateProductRequest) (models.Product, error) {
 	if request.Stock < 0 {
 		return models.Product{}, errors.New("Stock cannot be negative")
 	}
@@ -105,7 +105,7 @@ func (s *productService) UpdateProduct(id string, request dto.UpdateProductReque
 	return product, nil
 }
 
-func (s *productService) DeleteProduct(id string) error {
+func (s *productService) DeleteProduct(id int64) error {
 	product, err := s.repo.FindByID(id)
 	if err != nil {
 		return err

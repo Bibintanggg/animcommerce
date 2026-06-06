@@ -1,9 +1,10 @@
 package handler
 
 import (
-	"animcommerce/backend/dto"
+	dto "animcommerce/backend/dto/products"
 	"animcommerce/backend/service"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -77,11 +78,19 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 }
 
 func (h *ProductHandler) UpdateProduct(c *gin.Context) {
-	id := c.Param("id")
+	idParam := c.Param("id")
+
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid ID format. ID must be a number",
+		})
+		return
+	}
 
 	var request dto.UpdateProductRequest
 
-	err := c.ShouldBindJSON(&request)
+	err = c.ShouldBindJSON(&request)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -104,9 +113,16 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 }
 
 func (h *ProductHandler) DeleteProduct(c *gin.Context) {
-	id := c.Param("id")
+	idParam := c.Param("id")
 
-	err := h.service.DeleteProduct(id)
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid ID format. ID must be a number",
+		})
+	}
+
+	err = h.service.DeleteProduct(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"message": "Product not found",

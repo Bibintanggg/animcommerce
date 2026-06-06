@@ -4,6 +4,8 @@ import (
 	"animcommerce/backend/models"
 	"animcommerce/backend/repository"
 	"errors"
+
+	"gorm.io/gorm"
 )
 
 type CartService interface {
@@ -14,12 +16,14 @@ type CartService interface {
 }
 
 type cartService struct {
-	repo repository.CartRepository
+	cartRepo    repository.CartRepository
+	productRepo repository.ProductRepository
 }
 
-func NewCartService(repo repository.CartRepository) CartService {
+func NewCartService(cartRepo repository.CartRepository, productRepo repository.ProductRepository) CartService {
 	return &cartService{
-		repo: repo,
+		cartRepo:    cartRepo,
+		productRepo: productRepo,
 	}
 }
 
@@ -28,52 +32,60 @@ func (s *cartService) AddToCart(userID int64, productID int64, quantity int) err
 		return errors.New("Quantity must be greater than 0")
 	}
 
-	cart, err := s.repo.GetCartByUserID(userID)
-	if err != nil || cart.ID == 0 {
-		cart = models.Cart{
-			UserID: userID,
-		}
+	_, err := s.productRepo.FindByID(productID)
+	if err != nil {
+		return errors.New("Product not found")
+	}
 
-		err := s.repo.CreateCart(&cart)
-		if err != nil {
+	cart, err := s.cartRepo.GetCartByUserID(userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			newCart := models.Cart{
+				UserID: userID,
+			}
+
+			err = s.cartRepo.CreateCart(&newCart)
+			if err != nil {
+				return err
+			}
+
+			cart = newCart
+		} else {
 			return err
 		}
 	}
 
-	cart, err = s.repo.GetCartByUserID(userID)
-	if err != nil {
-		return nil
-	}
-
-	cartID := cart.ID
-
-	item, err := s.repo.FindItem(cartID, productID)
+	item, err := s.cartRepo.FindItem(cart.ID, productID)
 	if err == nil {
 		item.Quantity += quantity
-		return s.repo.UpdateItem(&item)
+		return s.cartRepo.UpdateItem(&item)
+	}
+
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
 	}
 
 	newItem := models.CartProduct{
-		CartID:    cartID,
+		CartID:    cart.ID,
 		ProductID: productID,
 		Quantity:  quantity,
 	}
 
-	return s.repo.CreateItem(&newItem)
+	return s.cartRepo.CreateItem(&newItem)
 }
 
 func (s *cartService) GetCart(userID int64) ([]models.CartProduct, error) {
-	cart, err := s.repo.GetCartByUserID(userID)
+	cart, err := s.cartRepo.GetCartByUserID(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	cartProducts, err := s.repo.GetCartItems(cart.ID)
+	items, err := s.cartRepo.GetCartItems(cart.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	return cartProducts, nil
+	return items, nil
 }
 
 func (s *cartService) UpdateQuantity(userID int64, productID int64, quantity int) error {
@@ -82,25 +94,25 @@ func (s *cartService) UpdateQuantity(userID int64, productID int64, quantity int
 
 	}
 
-	cart, err := s.repo.GetCartByUserID(userID)
+	cart, err := s.cartRepo.GetCartByUserID(userID)
 	if err != nil {
 		return err
 	}
 
-	item, err := s.repo.FindItem(cart.ID, productID)
+	item, err := s.cartRepo.FindItem(cart.ID, productID)
 	if err != nil {
 		return err
 	}
 
-	item.Quantity = int(quantity)
-	return s.repo.UpdateItem(&item)
+	item.Quantity = quantity
+	return s.cartRepo.UpdateItem(&item)
 }
 
 func (s *cartService) RemoveItem(userID int64, productID int64) error {
-	cart, err := s.repo.GetCartByUserID(userID)
+	cart, err := s.cartRepo.GetCartByUserID(userID)
 	if err != nil {
 		return err
 	}
 
-	return s.repo.DeleteItem(cart.ID, productID)
+	return s.cartRepo.DeleteItem(cart.ID, productID)
 }

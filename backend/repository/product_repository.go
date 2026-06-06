@@ -9,7 +9,7 @@ import (
 type ProductRepository interface {
 	FindAll() ([]models.Product, error)
 	FindBySlug(slug string) (models.Product, error)
-	FindByID(id string) (models.Product, error)
+	FindByID(id int64) (models.Product, error)
 	Create(product *models.Product) error
 	Update(product *models.Product) error
 	Delete(product *models.Product) error
@@ -38,7 +38,7 @@ func (r *productRepository) FindBySlug(slug string) (models.Product, error) {
 	return product, err
 }
 
-func (r *productRepository) FindByID(id string) (models.Product, error) {
+func (r *productRepository) FindByID(id int64) (models.Product, error) {
 	var product models.Product
 	err := r.db.First(&product, "id = ?", id).Error
 	return product, err
