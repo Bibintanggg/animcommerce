@@ -39,7 +39,7 @@ func (r *cartProductRepository) FindByCartAndProduct(cartID int64, productID int
 func (r *cartProductRepository) GetCartByID(cartID int64) ([]models.CartProduct, error) {
 	var items []models.CartProduct
 
-	err := r.db.Where("cart_id = ?", cartID).Find(&items).Error
+	err := r.db.Preload("Product").Where("cart_id = ?", cartID).Find(&items).Error
 
 	return items, err
 }

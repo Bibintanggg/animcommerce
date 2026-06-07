@@ -31,6 +31,21 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	)
 	cartHandler := handler.NewCartHandler(cartService)
 
+	orderRepository := repository.NewOrderRepository(db)
+	orderItemRepository := repository.NewOrderItemRepository(db)
+	cartProductRepository := repository.NewCartProductRepository(db)
+	addressRepository := repository.NewUserAddressRepository(db)
+	orderService := service.NewOrderService(
+		db,
+		orderRepository,
+		orderItemRepository,
+		cartRepository,
+		cartProductRepository,
+		productRepository,
+		addressRepository,
+	)
+	orderHandler := handler.NewOrderHandler(orderService)
+
 	api := r.Group("/api")
 	{
 		api.POST("/login", loginHandler.Login)
@@ -51,6 +66,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			auth.POST("/cart", cartHandler.AddToCart)
 			auth.PUT("/cart/:id", cartHandler.UpdateQuantity)
 			auth.DELETE("/cart/:id", cartHandler.RemoveItem)
+
+			auth.POST("/orders/checkout", orderHandler.Checkout)
+
+			auth.GET("/orders", orderHandler.GetMyOrders)
+
+			auth.GET("/orders/:id", orderHandler.GetOrderDetail)
+
+			auth.PATCH("/orders/:id/status", orderHandler.UpdateOrderStatus)
+
+			// auth.PATCH("/orders/:id/shipment", orderHandler.UpdateShipmentStatus)
 		}
 	}
 }
