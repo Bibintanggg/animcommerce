@@ -50,11 +50,10 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	user := models.User{
-		Name:        req.Name,
-		Email:       req.Email,
-		Password:    req.Password,
-		UserAddress: req.UserAddress,
-		Role:        enum.UserRole(req.Role),
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: req.Password,
+		Role:     enum.UserRole(req.Role),
 	}
 
 	result, err := h.service.CreateUser(user)

@@ -29,13 +29,13 @@ func (r *orderRepository) Create(order *models.OrderProduct) error {
 
 func (r *orderRepository) FindByID(id int64) (*models.OrderProduct, error) {
 	var order models.OrderProduct
-	err := r.db.Preload("UserAddress").First(&order, id).Error
+	err := r.db.Preload("User").Preload("UserAddress").Preload("OrderItem.Product").First(&order, id).Error
 	return &order, err
 }
 
 func (r *orderRepository) FindByUserID(userID int64) ([]models.OrderProduct, error) {
 	var order []models.OrderProduct
-	err := r.db.Where("user_id = ?", userID).Order("created_at DESC").Find(&order).Error
+	err := r.db.Preload("User").Preload("UserAddress").Preload("OrderItem.Product").Where("user_id = ?", userID).Order("created_at DESC").Find(&order).Error
 	return order, err
 }
 

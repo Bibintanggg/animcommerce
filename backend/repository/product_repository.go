@@ -2,6 +2,7 @@ package repository
 
 import (
 	"animcommerce/backend/models"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -14,6 +15,7 @@ type ProductRepository interface {
 	Update(product *models.Product) error
 	Delete(product *models.Product) error
 	LoadUser(product *models.Product) error
+	ReduceStock(tx *gorm.DB, productID int64, qty int) error
 }
 
 type productRepository struct {
@@ -58,4 +60,18 @@ func (r *productRepository) Delete(product *models.Product) error {
 
 func (r *productRepository) LoadUser(product *models.Product) error {
 	return r.db.Preload("User").First(product, product.ID).Error
+}
+
+func (r *productRepository) ReduceStock(tx *gorm.DB, productID int64, qty int) error {
+	result := tx.Model(&models.Product{}).Where("id = ? AND stock >= ?", productID, qty).Update("stock", gorm.Expr("stock - ?", qty))
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("Stock not enough")
+	}
+
+	return nil
 }

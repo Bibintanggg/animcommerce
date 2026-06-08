@@ -7,6 +7,7 @@ import (
 	"animcommerce/backend/models/enum"
 	"animcommerce/backend/repository"
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -27,11 +28,12 @@ type orderService struct {
 	cartProductRepo repository.CartProductRepository
 	productRepo     repository.ProductRepository
 	addressRepo     repository.UserAddressRepository
+	invoiceService  InvoiceService
 }
 
 func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, orderItemRepo repository.OrderItemRepository,
 	cartRepo repository.CartRepository, cartProductRepo repository.CartProductRepository, productRepo repository.ProductRepository,
-	addressRepo repository.UserAddressRepository) OrderService {
+	addressRepo repository.UserAddressRepository, invoiceService InvoiceService) OrderService {
 	return &orderService{
 		db:            db,
 		orderRepo:     orderRepo,
@@ -40,8 +42,9 @@ func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, orderIte
 		cartRepo:        cartRepo,
 		cartProductRepo: cartProductRepo,
 
-		productRepo: productRepo,
-		addressRepo: addressRepo,
+		productRepo:    productRepo,
+		addressRepo:    addressRepo,
+		invoiceService: invoiceService,
 	}
 }
 
@@ -84,18 +87,13 @@ func (s *orderService) Checkout(userID int64, req dto.CheckoutRequest) error {
 	var totalPrice int64
 
 	for _, item := range items {
-		product, err := s.productRepo.FindByID(item.ProductID)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
 
-		if product.Stock < int(item.Quantity) {
+		if item.Product.Stock < int(item.Quantity) {
 			tx.Rollback()
 			return errors.New("Stock not enough")
 		}
 
-		totalPrice += int64(product.Price) * int64(item.Quantity)
+		totalPrice += int64(item.Product.Price) * int64(item.Quantity)
 	}
 
 	order := models.OrderProduct{
@@ -128,14 +126,17 @@ func (s *orderService) Checkout(userID int64, req dto.CheckoutRequest) error {
 			return err
 		}
 
-		product, err := s.productRepo.FindByID(item.ProductID)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
+		// product := item.Product
 
-		product.Stock -= int(item.Quantity)
-		err = tx.Save(product).Error
+		// product.Stock -= int(item.Quantity)
+
+		// err := tx.Save(&product).Error
+
+		err := s.productRepo.ReduceStock(
+			tx,
+			item.ProductID,
+			int(item.Quantity),
+		)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -152,6 +153,13 @@ func (s *orderService) Checkout(userID int64, req dto.CheckoutRequest) error {
 	if err := tx.Commit().Error; err != nil {
 		return err
 	}
+
+	go func(orderID int64) {
+		_, err := s.invoiceService.GenerateInvoice(orderID)
+		if err != nil {
+			fmt.Printf("Failed to generate invoice for order %d: %v\n", orderID, err)
+		}
+	}(order.ID)
 
 	return nil
 }

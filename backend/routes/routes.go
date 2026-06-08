@@ -12,6 +12,8 @@ import (
 
 func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
+	r.Static("/storage", "./storage")
+
 	loginRepository := repository.NewLoginRepository(db)
 	loginService := service.NewLoginService(loginRepository)
 	loginHandler := handler.NewLoginHandler(loginService)
@@ -32,6 +34,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	cartHandler := handler.NewCartHandler(cartService)
 
 	orderRepository := repository.NewOrderRepository(db)
+	invoiceService := service.NewInvoiceService(orderRepository, db)
 	orderItemRepository := repository.NewOrderItemRepository(db)
 	cartProductRepository := repository.NewCartProductRepository(db)
 	addressRepository := repository.NewUserAddressRepository(db)
@@ -43,6 +46,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		cartProductRepository,
 		productRepository,
 		addressRepository,
+		invoiceService,
 	)
 	orderHandler := handler.NewOrderHandler(orderService)
 
