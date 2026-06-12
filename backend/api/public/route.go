@@ -7,13 +7,15 @@ import (
 )
 
 type PublicRoute struct {
-	handler *gin.RouterGroup
-	api     *handler.LoginHandler
+	handler  *gin.RouterGroup
+	login    *handler.LoginHandler
+	register *handler.RegisterHandler
 }
 
-func NewPublicRoute(handler *gin.RouterGroup, api *handler.LoginHandler) *PublicRoute {
+func NewPublicRoute(handler *gin.RouterGroup, login *handler.LoginHandler, register *handler.RegisterHandler) *PublicRoute {
 	return &PublicRoute{
-		handler: handler,
-		api:     api,
+		handler:  handler,
+		login:    login,
+		register: register,
 	}
 }

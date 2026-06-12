@@ -23,6 +23,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	loginService := service.NewLoginService(loginRepository)
 	loginHandler := handler.NewLoginHandler(loginService)
 
+	registerRepository := repository.NewRegisterRepository(db)
+	registerService := service.NewRegisterService(registerRepository)
+	registerHandler := handler.NewRegisterHandler(registerService)
+
 	productRepository := repository.NewProductRepository(db)
 	productService := service.NewProductService(productRepository)
 	productHandler := handler.NewProductHandler(productService)
@@ -58,7 +62,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	api := r.Group("/api")
 	{
 		auth := api.Group("/")
-		publicRoute := public.NewPublicRoute(api, loginHandler)
+		publicRoute := public.NewPublicRoute(api, loginHandler, registerHandler)
 		publicRoute.RegisterLoginRoute()
 
 		auth.Use(middleware.AuthMiddleware())
