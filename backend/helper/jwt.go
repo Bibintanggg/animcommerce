@@ -15,9 +15,10 @@ type JWTClaim struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(userID int64) (string, error) {
+func GenerateToken(userID int64, role string) (string, error) {
 	claims := JWTClaim{
 		UserID: userID,
+		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 		},

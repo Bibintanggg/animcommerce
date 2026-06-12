@@ -27,11 +27,11 @@ func (s *loginService) Login(req dto.LoginRequest) (string, error) {
 		return "", errors.New("Invalid email")
 	}
 
-	if user.Password != req	.Password {
+	if user.Password != req.Password {
 		return "", errors.New("Invalid password")
 	}
 
-	token, err := helper.GenerateToken(user.ID)
+	token, err := helper.GenerateToken(user.ID, user.Email)
 	if err != nil {
 		return "", errors.New("Failed to generate token")
 	}
