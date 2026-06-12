@@ -1,8 +1,13 @@
 package routes
 
 import (
+	"animcommerce/backend/api/admin"
+	"animcommerce/backend/api/customer"
+	"animcommerce/backend/api/public"
+	"animcommerce/backend/api/superadmin"
 	"animcommerce/backend/handler"
 	"animcommerce/backend/middleware"
+	"animcommerce/backend/models/enum"
 	"animcommerce/backend/repository"
 	"animcommerce/backend/service"
 
@@ -52,34 +57,41 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 	api := r.Group("/api")
 	{
-		api.POST("/login", loginHandler.Login)
-
 		auth := api.Group("/")
+		publicRoute := public.NewPublicRoute(api, loginHandler)
+		publicRoute.RegisterLoginRoute()
+
 		auth.Use(middleware.AuthMiddleware())
 		{
-			auth.GET("/products", productHandler.GetProducts)
-			auth.GET("/product-details/:slug", productHandler.GetProductDetails)
-			auth.POST("/products", productHandler.CreateProduct)
-			auth.PUT("/products/:id", productHandler.UpdateProduct)
-			auth.DELETE("/products/:id", productHandler.DeleteProduct)
+			productRoute := customer.NewProductRoute(auth, productHandler)
+			productRoute.Register()
 
-			auth.GET("/users", userHandler.GetAllUser)
-			auth.POST("/users", userHandler.CreateUser)
+			cartRoute := customer.NewCartRoute(auth, cartHandler)
+			cartRoute.Register()
 
-			auth.GET("/cart", cartHandler.GetCart)
-			auth.POST("/cart", cartHandler.AddToCart)
-			auth.PUT("/cart/:id", cartHandler.UpdateQuantity)
-			auth.DELETE("/cart/:id", cartHandler.RemoveItem)
+			orderRoute := customer.NewOrdersRoute(auth, orderHandler)
+			orderRoute.Register()
 
-			auth.POST("/orders/checkout", orderHandler.Checkout)
+			adminGroup := api.Group("/admin")
+			adminGroup.Use(
+				middleware.AuthMiddleware(),
+				middleware.RoleMiddleware(
+					enum.AdminRole,
+					enum.SuperRole,
+				),
+			)
 
-			auth.GET("/orders", orderHandler.GetMyOrders)
+			admin.NewProductRoute(adminGroup, productHandler).Register()
+			admin.NewOrderRoute(adminGroup, orderHandler).Register()
 
-			auth.GET("/orders/:id", orderHandler.GetOrderDetail)
-
-			auth.PATCH("/orders/:id/status", orderHandler.UpdateOrderStatus)
-
-			// auth.PATCH("/orders/:id/shipment", orderHandler.UpdateShipmentStatus)
+			superadminGroup := api.Group("/superadmin")
+			superadminGroup.Use(
+				middleware.AuthMiddleware(),
+				middleware.RoleMiddleware(
+					enum.SuperRole,
+				),
+			)
+			superadmin.NewUserRoute(superadminGroup, userHandler).Register()
 		}
 	}
 }
