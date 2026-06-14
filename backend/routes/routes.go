@@ -65,11 +65,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		publicRoute := public.NewPublicRoute(api, loginHandler, registerHandler)
 		publicRoute.RegisterLoginRoute()
 
+		productRoute := customer.NewProductRoute(api, productHandler)
+		productRoute.Register()
+
 		auth.Use(middleware.AuthMiddleware())
 		{
-			productRoute := customer.NewProductRoute(auth, productHandler)
-			productRoute.Register()
-
 			cartRoute := customer.NewCartRoute(auth, cartHandler)
 			cartRoute.Register()
 
