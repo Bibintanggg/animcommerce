@@ -12,11 +12,11 @@ export default function Home() {
     <main>
       <HeroSection />
       <FeaturedCollection />
-      <NewArrivals />
-      <CategoriesSection />
-      <BestSellers />
+      {/* <NewArrivals /> */}
+      {/* <CategoriesSection /> */}
+      {/* <BestSellers /> */}
       <BrandStory />
-      <Testimonials />
+      {/* <Testimonials /> */}
       <Newsletter />
     </main>
   );

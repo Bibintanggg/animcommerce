@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { categories } from "@/lib/data";
+// import { categories } from "@/lib/data";
 
 export default function CategoriesSection() {
   return (

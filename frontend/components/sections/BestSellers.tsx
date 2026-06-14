@@ -1,4 +1,3 @@
-import { bestSellers } from "@/lib/data";
 import ProductCard from "@/components/common/ProductCard";
 
 export default function BestSellers() {

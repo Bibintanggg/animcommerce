@@ -46,7 +46,7 @@ export default function Navbar() {
                 className="text-[#1A1A1A] font-semibold tracking-[0.2em] uppercase text-sm"
                 style={{ fontFamily: "Inter, sans-serif" }}
               >
-                NIHON
+                ANIMCOMMERCE
               </span>
             </a>
 

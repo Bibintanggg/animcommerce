@@ -39,7 +39,7 @@ export default function HeroSection() {
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.9, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="font-display text-[#1A1A1A] leading-[1.05] mb-6"
+              className="font-display text-[#1A1A1A] leading-[1.05] mb-6 font-medium"
               style={{ fontSize: "clamp(48px, 6vw, 88px)" }}
             >
               Where Anime

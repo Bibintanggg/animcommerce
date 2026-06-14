@@ -51,7 +51,7 @@ export default function BrandStory() {
               私たちについて
             </p>
             <h2
-              className="font-display text-[#1A1A1A] leading-tight mb-8"
+              className="font-bold text-[#1A1A1A] leading-tight mb-8"
               style={{ fontSize: "clamp(32px, 4vw, 52px)" }}
             >
               Rooted in
