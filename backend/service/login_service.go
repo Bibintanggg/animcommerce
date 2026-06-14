@@ -8,7 +8,7 @@ import (
 )
 
 type LoginService interface {
-	Login(req dto.LoginRequest) (string, error)
+	Login(req dto.LoginRequest) (*dto.LoginResponse, error)
 }
 
 type loginService struct {
@@ -21,19 +21,33 @@ func NewLoginService(repo repository.LoginRepository) LoginService {
 	}
 }
 
-func (s *loginService) Login(req dto.LoginRequest) (string, error) {
+func (s *loginService) Login(req dto.LoginRequest) (*dto.LoginResponse, error) {
 	user, err := s.repo.FindByEmail(req.Email)
 	if err != nil {
-		return "", errors.New("Invalid email")
+		return nil, errors.New("invalid email")
 	}
 
 	if user.Password != req.Password {
-		return "", errors.New("Invalid password")
+		return nil, errors.New("invalid password")
 	}
 
-	token, err := helper.GenerateToken(user.ID, user.Email)
+	token, err := helper.GenerateToken(
+		user.ID,
+		string(user.Role),
+	)
 	if err != nil {
-		return "", errors.New("Failed to generate token")
+		return nil, errors.New("failed to generate token")
 	}
-	return token, nil
+
+	response := &dto.LoginResponse{
+		Token: token,
+		User: dto.LoginUserResponse{
+			ID:    user.ID,
+			Name:  user.Name,
+			Email: user.Email,
+			Role:  string(user.Role),
+		},
+	}
+
+	return response, nil
 }

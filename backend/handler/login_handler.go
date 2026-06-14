@@ -32,7 +32,7 @@ func (h *LoginHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.Service.Login(request)
+	response, err := h.Service.Login(request)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"message": "Unauthorized",
@@ -42,6 +42,6 @@ func (h *LoginHandler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success created token",
-		"data":    token,
+		"data":    response,
 	})
 }
