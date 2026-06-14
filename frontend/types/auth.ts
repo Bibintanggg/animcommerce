@@ -6,6 +6,11 @@ export interface LoginRequest {
 export interface LoginResponse {
     message: string
     data: {
-        token: string   
-    }    
+        token: string
+        user: {
+            id: number
+            name: string
+            role: string
+        }
+    }
 }

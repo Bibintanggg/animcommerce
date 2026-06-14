@@ -20,6 +20,7 @@ export default function Navbar() {
     { href: "#new-arrivals", label: "New Arrivals" },
     { href: "#best-sellers", label: "Best Sellers" },
     { href: "#story", label: "Our Story" },
+    { href: "/login", label: "Login" },
   ];
 
   return (
@@ -97,7 +98,6 @@ export default function Navbar() {
         </div>
       </motion.header>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {menuOpen && (
           <>

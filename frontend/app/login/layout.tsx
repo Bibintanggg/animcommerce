@@ -1,22 +1,28 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import "../globals.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import ReactQueryProvider from "@/providers/ReactQueryProviders";
 
 export const metadata: Metadata = {
-  title: "NIHON — Premium Japanese Anime Merchandise",
+  title: "Animcommerce - Login",
   description: "Curated figures, manga, and collectibles sourced directly from Japan's most celebrated studios.",
 };
 
-export default function RootLayout({
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+export default function Layout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" >
+    <html lang="en" className={plusJakarta.variable}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -27,7 +33,10 @@ export default function RootLayout({
       </head>
       <body>
         <ReactQueryProvider>
+          <main className="pt-16 lg:pt-20">
+            <Navbar/>
             {children}
+          </main>
         </ReactQueryProvider>
       </body>
     </html>

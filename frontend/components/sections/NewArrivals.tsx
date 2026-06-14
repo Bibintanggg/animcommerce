@@ -3,10 +3,16 @@
 import { useRef } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { newArrivals } from "@/lib/data";
 import ProductCard from "@/components/common/ProductCard";
+import { useQuery } from "@tanstack/react-query";
+import { getNewArrivals } from "@/services/product.service";
 
 export default function NewArrivals() {
+  const { data } = useQuery({
+    queryKey: ["new-arrival"],
+    queryFn: getNewArrivals
+  })
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (dir: "left" | "right") => {
@@ -21,7 +27,6 @@ export default function NewArrivals() {
   return (
     <section id="new-arrivals" className="py-20 lg:py-32 bg-[#F7F6F3]">
       <div className="max-w-[1440px] mx-auto">
-        {/* Header */}
         <div className="px-6 lg:px-12 flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10 lg:mb-14">
           <div>
             <p className="text-[#BC002D] text-xs tracking-[0.2em] uppercase font-medium mb-3">
@@ -52,12 +57,11 @@ export default function NewArrivals() {
           </div>
         </div>
 
-        {/* Horizontal scroll */}
         <div
           ref={scrollRef}
           className="flex gap-4 lg:gap-6 overflow-x-auto scroll-hide px-6 lg:px-12 pb-4"
         >
-          {newArrivals.map((product, i) => (
+          {data?.map((product, i) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, x: 30 }}
