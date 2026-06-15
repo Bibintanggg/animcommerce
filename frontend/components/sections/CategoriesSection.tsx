@@ -4,10 +4,13 @@ import { getCategoriesItem, getProducts } from "@/services/product.service";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useMemo } from "react";
+import SkeletonState from "../states/SkeletonStates";
+import ErrorState from "../states/ErrorStates";
+import errorAnimation from "../../public/assets/lottie/error-stress.json";
 // import { categories } from "@/lib/data";
 
 export default function CategoriesSection() {
-  const { data: products } = useQuery({
+  const { data: products, isLoading, error, refetch } = useQuery({
     queryKey: ["products"],
     queryFn: getProducts
   })
@@ -42,6 +45,22 @@ export default function CategoriesSection() {
         return "https://images.freepik.com/japan-aesthetic-default.jpg";
     }
   };
+
+  if (isLoading) {
+    return (
+      <div>
+        <SkeletonState title="Categories Sections" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-10">
+        <ErrorState onRetry={refetch} title="category" assets={errorAnimation} />
+      </div>
+    )
+  }
 
   return (
     <section id="categories" className="py-20 lg:py-32">

@@ -22,7 +22,7 @@ export default function Layout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={plusJakarta.variable}>
+    <html lang="en" className={`${plusJakarta.className} font-medium`}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -34,7 +34,7 @@ export default function Layout({
       <body>
         <ReactQueryProvider>
           <main className="pt-16 lg:pt-20">
-            <Navbar/>
+            <Navbar />
             {children}
           </main>
         </ReactQueryProvider>

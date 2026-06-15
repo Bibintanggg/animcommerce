@@ -5,12 +5,16 @@ import { useEffect, useState } from "react";
 import { Product } from "@/types/product";
 import { useQuery } from "@tanstack/react-query";
 import { getProducts } from "@/services/product.service";
+import { ErrorCard } from "../home-alert";
+import ErrorState from "../states/ErrorStates";
+import LoadingState from "../states/LoadingState";
+import errorAnimation from "../../public/assets/lottie/notfound-error.json";
 
 export default function FeaturedCollection() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["products"],
     queryFn: getProducts,
-    staleTime: 1000 * 60 * 5, 
+    staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -20,11 +24,17 @@ export default function FeaturedCollection() {
   console.log(data)
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div>
+      <LoadingState />
+    </div>;
   }
 
   if (error) {
-    return <div>Error loading products</div>;
+    return (
+      <div className="p-10">
+        <ErrorState onRetry={refetch} title="product" assets={errorAnimation} />
+      </div>
+    )
   }
 
   return (

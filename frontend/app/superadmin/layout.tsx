@@ -36,7 +36,7 @@ export default function Layout({
             <body>
                 <SidebarProvider>
                     <AppSidebar />
-                    <main >
+                    <main className="flex-1 min-w-0 p-6">
                         <SidebarTrigger />
                         {children}
                     </main>

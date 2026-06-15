@@ -22,25 +22,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={plusJakarta.variable}>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body>
-        <ReactQueryProvider>
-          <Navbar />
-          <main className="pt-16 lg:pt-20">
-            {children}
-          </main>
-          <Footer />
-        </ReactQueryProvider>
-      </body>
-    </html>
+    <>
+      <Navbar />
+      <main className="pt-16 lg:pt-20">
+        {children}
+      </main>
+      <Footer />
+    </>
   );
 }
 

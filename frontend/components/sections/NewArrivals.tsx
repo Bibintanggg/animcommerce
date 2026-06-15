@@ -6,9 +6,13 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import ProductCard from "@/components/common/ProductCard";
 import { useQuery } from "@tanstack/react-query";
 import { getNewArrivals } from "@/services/product.service";
+import { Skeleton } from "../ui/skeleton";
+import SkeletonState from "../states/SkeletonStates";
+import ErrorState from "../states/ErrorStates";
+import errorAnimation from "../../public/assets/lottie/error.json";
 
 export default function NewArrivals() {
-  const { data } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["new-arrival"],
     queryFn: getNewArrivals
   })
@@ -24,6 +28,21 @@ export default function NewArrivals() {
     });
   };
 
+  if (isLoading) {
+    return (
+      <div>
+        <SkeletonState title="New Arrivals" showButton />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-10">
+        <ErrorState onRetry={refetch} title="new arrivals" assets={errorAnimation} />
+      </div>
+    )
+  }
   return (
     <section id="new-arrivals" className="py-20 lg:py-32 bg-[#F7F6F3]">
       <div className="max-w-[1440px] mx-auto">
