@@ -27,10 +27,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DataTablePagination } from "./data-table-pagination";
-import { DataTableToolbar } from "./data-table-toolbar";
+import { DataTablePagination } from "./data-table/data-table-pagination";
+import { DataTableToolbar } from "./data-table/data-table-toolbar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DataTableProps } from "./types/data-table-props";
+import { DataTableProps } from "./data-table/types/data-table-props";
 
 
 export function DataTable<TData, TValue>({

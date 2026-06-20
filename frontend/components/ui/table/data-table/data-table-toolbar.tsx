@@ -23,27 +23,34 @@ export function DataTableToolbar<TData>({
     return (
         <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex flex-1 items-center gap-2 flex-wrap">
-                {filterFields.map((field) =>
-                    field.options ? (
-                        table.getColumn(field.value) && (
-                            <DataTableFacetedFilter
-                                key={field.value}
-                                column={table.getColumn(field.value)}
-                                title={field.value}
-                                options={field.options}
-                            />
-                        )
+                {filterFields.map((field) => {
+                    // Cek column dengan lebih ketat
+                    const column = table.getColumn(field.value);
+
+                    // ✅ Jika column undefined, jangan render apapun
+                    if (!column) {
+                        console.warn(`Column "${field.value}" not found, skipping filter`);
+                        return null;
+                    }
+
+                    // Jika column ada, baru render
+                    return field.options ? (
+                        <DataTableFacetedFilter
+                            key={field.value}
+                            column={column}
+                            title={field.value}
+                            options={field.options}
+                        />
                     ) : (
                         <Input
                             key={field.value}
                             placeholder={field.placeholder ?? `Filter ${field.value}...`}
-                            value={(table.getColumn(field.value)?.getFilterValue() as string) ?? ""}
-                            onChange={(e) => table.getColumn(field.value)?.setFilterValue(e.target.value)}
+                            value={(column.getFilterValue() as string) ?? ""}
+                            onChange={(e) => column.setFilterValue(e.target.value)}
                             className="h-8 w-[150px] lg:w-[250px]"
                         />
-                    )
-                )}
-
+                    );
+                })}
                 {isFiltered && (
                     <Button
                         variant="ghost"

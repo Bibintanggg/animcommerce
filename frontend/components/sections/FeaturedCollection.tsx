@@ -21,8 +21,6 @@ export default function FeaturedCollection() {
     retry: 1,
   });
 
-  console.log(data)
-
   if (isLoading) {
     return <div>
       <LoadingState />
