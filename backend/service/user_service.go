@@ -8,6 +8,7 @@ import (
 type UserService interface {
 	GetAllUser() ([]models.User, error)
 	CreateUser(user models.User) (models.User, error)
+	CreateUserWithAddress(user models.User, address models.UserAddress) (models.User, error) // ✅ Tambahkan
 }
 
 type userService struct {
@@ -23,11 +24,17 @@ func (s *userService) GetAllUser() ([]models.User, error) {
 }
 
 func (s *userService) CreateUser(user models.User) (models.User, error) {
-
 	err := s.repo.Create(&user)
 	if err != nil {
 		return models.User{}, err
 	}
+	return user, nil
+}
 
+func (s *userService) CreateUserWithAddress(user models.User, address models.UserAddress) (models.User, error) {
+	err := s.repo.CreateWithAddress(&user, &address)
+	if err != nil {
+		return models.User{}, err
+	}
 	return user, nil
 }

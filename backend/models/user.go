@@ -6,11 +6,12 @@ import (
 )
 
 type User struct {
-	ID        int64         `gorm:"primaryKey;autoIncrement"`
-	Name      string        `gorm:"not null"`
-	Email     string        `gorm:"unique; not null"`
+	ID        int64         `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name      string        `gorm:"not null" json:"name"`
+	Email     string        `gorm:"unique; not null" json:"email"`
 	Password  string        `json:"-" gorm:"not null"`
-	Role      enum.UserRole `json:"-" gorm:"default:customer"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Role      enum.UserRole `gorm:"default:customer" json:"role"`
+	Addresses []UserAddress `gorm:"foreignKey:UserID" json:"addresses,omitempty"`
+	CreatedAt time.Time     `json:"created_at"`
+	UpdatedAt time.Time     `json:"updated_at"`
 }

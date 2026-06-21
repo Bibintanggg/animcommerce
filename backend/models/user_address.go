@@ -3,15 +3,15 @@ package models
 import "time"
 
 type UserAddress struct {
-	ID           int64 `gorm:"primaryKey;autoIncrement"`
-	UserID       int64
-	User         User   `gorm:"foreignKey:UserID"`
-	ReceiverName string `gorm:"type:varchar(100)"`
-	PhoneNumber  string `gorm:"type:varchar(20)"`
-	AddressLine  string `gorm:"type:text"`
-	City         string `gorm:"type:varchar(100)"`
-	PostalCode   string `gorm:"type:varchar(10)"`
-	IsDefault    bool   `gorm:"default:false"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID           int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID       int64     `gorm:"index" json:"user_id"`
+	User         User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	ReceiverName string    `gorm:"type:varchar(100)" json:"receiver_name"`
+	PhoneNumber  string    `gorm:"type:varchar(20)" json:"phone_number"`
+	AddressLine  string    `gorm:"type:text" json:"address_line"`
+	City         string    `gorm:"type:varchar(100)" json:"city"`
+	PostalCode   string    `gorm:"type:varchar(10)" json:"postal_code"`
+	IsDefault    bool      `gorm:"default:false" json:"is_default"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
