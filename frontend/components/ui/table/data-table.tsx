@@ -28,7 +28,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataTablePagination } from "./data-table/data-table-pagination";
-import { DataTableToolbar } from "./data-table/data-table-toolbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTableProps } from "./data-table/types/data-table-props";
 
@@ -84,7 +83,6 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className={`space-y-4 ${className ?? ""}`}>
-      <DataTableToolbar table={table} filterFields={filterFields} />
 
       <div className="rounded-md border">
         <Table>
