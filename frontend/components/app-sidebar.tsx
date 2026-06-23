@@ -9,6 +9,7 @@ import {
     Settings,
     ChevronUp,
     Shield,
+    LucideIcon,
 } from "lucide-react";
 
 import {
@@ -29,8 +30,55 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { UserRole } from "@/types/user";
+import { useQuery } from "@tanstack/react-query";
+import { login } from "@/services/auth.service";
 
 export function AppSidebar() {
+    const { data: user, isLoading } = useQuery({
+        queryKey: ["me"],
+        queryFn: login,
+    });
+
+    type MenuItem = {
+        title: string;
+        href: string;
+        icon: LucideIcon;
+        roles: UserRole[];
+    };
+
+    const menus: MenuItem[] = [
+        {
+            title: "Dashboard",
+            href: "/admin/dashboard",
+            icon: LayoutDashboard,
+            roles: ["admin", "superadmin"],
+        },
+        {
+            title: "Products",
+            href: "/admin/products",
+            icon: Package,
+            roles: ["admin", "superadmin"],
+        },
+        {
+            title: "Orders",
+            href: "/admin/orders",
+            icon: ShoppingCart,
+            roles: ["admin", "superadmin"],
+        },
+        {
+            title: "Users",
+            href: "/superadmin/users",
+            icon: Users,
+            roles: ["superadmin"],
+        },
+        {
+            title: "Settings",
+            href: "/settings",
+            icon: Settings,
+            roles: ["admin", "superadmin"],
+        },
+    ];
     return (
         <Sidebar>
             <SidebarHeader className="border-b">
