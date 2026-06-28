@@ -2,6 +2,7 @@ package handler
 
 import (
 	"animcommerce/backend/dto"
+	"fmt"
 	"net/http"
 
 	"animcommerce/backend/service"
@@ -34,8 +35,10 @@ func (h *LoginHandler) Login(c *gin.Context) {
 
 	response, err := h.Service.Login(request)
 	if err != nil {
+		fmt.Println("LOGIN ERROR:", err)
+
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Unauthorized",
+			"message": err.Error(),
 		})
 		return
 	}
