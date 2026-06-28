@@ -1,10 +1,10 @@
-// components/forms/UserForm.tsx
 "use client"
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserRole } from "@/types/user";
+import { gooeyToast } from "goey-toast";
 import React, { useState } from "react";
 
 interface UserFormProps {
@@ -104,7 +104,8 @@ export function UserForm({ url }: UserFormProps) {
                 throw new Error(result.message || "Gagal menyimpan data");
             }
 
-            console.log("Success:", result);
+            gooeyToast.success("Pengguna berhasil ditambahkan");
+
             setFormData({
                 name: "",
                 email: "",
@@ -113,10 +114,12 @@ export function UserForm({ url }: UserFormProps) {
                 user_address: null
             });
             setShowAddress(false);
-            
+
         } catch (err) {
             setError(err instanceof Error ? err.message : "Terjadi kesalahan");
-            console.error("Error:", err);
+            gooeyToast.error(
+                err instanceof Error ? err.message : "Terjadi kesalahan"
+            );
         } finally {
             setIsLoading(false);
         }
@@ -147,13 +150,13 @@ export function UserForm({ url }: UserFormProps) {
                 </div>
             )}
 
-            <Input 
+            <Input
                 placeholder="Nama"
                 value={formData.name}
                 onChange={(e) => setFormData({
                     ...formData,
                     name: e.target.value
-                })} 
+                })}
                 required
             />
 
@@ -179,7 +182,7 @@ export function UserForm({ url }: UserFormProps) {
                 required
             />
 
-            <Select 
+            <Select
                 value={formData.role}
                 onValueChange={(value) => setFormData({
                     ...formData,
@@ -209,34 +212,34 @@ export function UserForm({ url }: UserFormProps) {
             {showAddress && (
                 <div className="space-y-3 border p-4 rounded-md">
                     <h4 className="text-sm font-medium">Informasi Alamat</h4>
-                    
+
                     <Input
                         placeholder="Nama Penerima (max 100 karakter)"
                         maxLength={100}
                         value={formData.user_address?.receiver_name || ""}
                         onChange={(e) => handleAddressChange("receiver_name", e.target.value)}
                     />
-                    
+
                     <Input
                         placeholder="Nomor Telepon (max 20 karakter)"
                         maxLength={20}
                         value={formData.user_address?.phone_number || ""}
                         onChange={(e) => handleAddressChange("phone_number", e.target.value)}
                     />
-                    
+
                     <Input
                         placeholder="Alamat Lengkap"
                         value={formData.user_address?.address_line || ""}
                         onChange={(e) => handleAddressChange("address_line", e.target.value)}
                     />
-                    
+
                     <Input
                         placeholder="Kota (max 100 karakter)"
                         maxLength={100}
                         value={formData.user_address?.city || ""}
                         onChange={(e) => handleAddressChange("city", e.target.value)}
                     />
-                    
+
                     <Input
                         placeholder="Kode Pos (max 10 karakter)"
                         maxLength={10}

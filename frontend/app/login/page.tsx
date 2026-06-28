@@ -26,14 +26,12 @@ export default function Login() {
   const loginMutation = useMutation({
     mutationFn: (data: LoginRequest) => login(data),
     onSuccess: (res) => {
-      console.log("LOGIN SUCCESS");
-      console.log(res);
-
       localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user))
+
+      document.cookie = `role=${res.data.user.role}; path=/`
 
       const role = res.data.user.role;
-
-      console.log("ROLE:", role);
 
       if (role === "superadmin") {
         router.push("/superadmin/dashboard");
@@ -43,9 +41,10 @@ export default function Login() {
         router.push("/");
       }
     },
-    onError: (err) => {
-      console.log("LOGIN ERROR", err);
-    },
+    onError: (err: any) => {
+      console.log("STATUS:", err.response?.status);
+      console.log("DATA:", err.response?.data);
+    }
   });
 
   const isLoading = loginMutation.isPending;

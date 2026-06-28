@@ -35,10 +35,8 @@ import { useQuery } from "@tanstack/react-query";
 import { login } from "@/services/auth.service";
 
 export function AppSidebar() {
-    const { data: user, isLoading } = useQuery({
-        queryKey: ["me"],
-        queryFn: login,
-    });
+    const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null 
+    console.log(user)   
 
     type MenuItem = {
         title: string;
@@ -162,10 +160,10 @@ export function AppSidebar() {
 
                                         <div className="flex flex-col text-left">
                                             <span className="text-sm font-medium">
-                                                Bintang
+                                                {user?.name}
                                             </span>
                                             <span className="text-xs text-muted-foreground">
-                                                Superadmin
+                                                {user?.role}
                                             </span>
                                         </div>
                                     </div>

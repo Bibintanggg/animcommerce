@@ -6,6 +6,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import ReactQueryProvider from "@/providers/ReactQueryProviders";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { GooeyToaster } from "@/components/ui/goey-toaster";
 
 export const metadata: Metadata = {
     title: "NIHON — Premium Japanese Anime Merchandise",

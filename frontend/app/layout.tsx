@@ -4,6 +4,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import ReactQueryProvider from "@/providers/ReactQueryProviders";
+import { GooeyToaster } from "@/components/ui/goey-toaster";
 
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body>
         <ReactQueryProvider>
           {children}
+          <GooeyToaster position="top-center" />
         </ReactQueryProvider>
       </body>
     </html>
