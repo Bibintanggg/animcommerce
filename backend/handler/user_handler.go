@@ -1,4 +1,3 @@
-// backend/handler/user_handler.go
 package handler
 
 import (
@@ -7,6 +6,7 @@ import (
 	"animcommerce/backend/models/enum"
 	"animcommerce/backend/service"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -23,20 +23,35 @@ func NewUserHandler(service service.UserService) *UserHandler {
 }
 
 func (h *UserHandler) GetAllUser(c *gin.Context) {
-	users, err := h.service.GetAllUser()
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
 
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	search := c.Query("search")
+
+	filter := dto.UserFilter{
+		Page:   page,
+		Limit:  limit,
+		Search: search,
+	}
+
+	users, total, err := h.service.GetAllUser(filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed get users",
-			"error":   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal mengambil data pengguna"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Success get users",
-		"data":    users,
-		"total":   len(users),
+		"data":  users,
+		"total": total,
+		"page":  page,
+		"limit": limit,
 	})
 }
 
@@ -123,6 +138,45 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Success create user",
+		"data":    result,
+	})
+}
+
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	var req dto.UpdateUserRequest
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid User ID",
+		})
+		return
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	user := models.User{
+		Name:  req.Name,
+		Email: req.Email,
+		Role:  enum.UserRole(req.Role),
+	}
+
+	result, err := h.service.UpdateUser(uint(id), user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed update user",
+			"data":    user,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Successfully updated user",
 		"data":    result,
 	})
 }

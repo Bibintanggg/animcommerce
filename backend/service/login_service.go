@@ -5,6 +5,8 @@ import (
 	"animcommerce/backend/helper"
 	"animcommerce/backend/repository"
 	"errors"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type LoginService interface {
@@ -27,8 +29,13 @@ func (s *loginService) Login(req dto.LoginRequest) (*dto.LoginResponse, error) {
 		return nil, errors.New("invalid email")
 	}
 
-	if user.Password != req.Password {
-		return nil, errors.New("invalid password")
+	err = bcrypt.CompareHashAndPassword(
+		[]byte(user.Password),
+		[]byte(req.Password),
+	)
+
+	if err != nil {
+		return nil, errors.New("Invalid Password")
 	}
 
 	token, err := helper.GenerateToken(

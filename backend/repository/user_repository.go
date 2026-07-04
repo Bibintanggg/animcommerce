@@ -1,15 +1,18 @@
 package repository
 
 import (
+	"animcommerce/backend/dto"
 	"animcommerce/backend/models"
 
 	"gorm.io/gorm"
 )
 
 type UserRepository interface {
-	FindAll() ([]models.User, error)
+	FindAll(filter dto.UserFilter) ([]models.User, int64, error)
 	Create(user *models.User) error
-	CreateWithAddress(user *models.User, address *models.UserAddress) error // ✅ Tambahkan ini
+	CreateWithAddress(user *models.User, address *models.UserAddress) error
+	FindById(id uint) (*models.User, error)
+	Update(user *models.User) error
 }
 
 type userRepository struct {
@@ -22,10 +25,30 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 	}
 }
 
-func (r *userRepository) FindAll() ([]models.User, error) {
+func (r *userRepository) FindAll(filter dto.UserFilter) ([]models.User, int64, error) {
 	var users []models.User
-	err := r.db.Preload("Addresses").Find(&users).Error // ✅ Preload addresses
-	return users, err
+	var total int64
+
+	query := r.db.Model(&models.User{})
+
+	if filter.Search != "" {
+		searchTerm := "%" + filter.Search + "%"
+		query = query.Where("name LIKE ? OR email LIKE ?", searchTerm, searchTerm)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (filter.Page - 1) * filter.Limit
+
+	err := query.
+		Preload("Addresses").
+		Offset(offset).
+		Limit(filter.Limit).
+		Find(&users).Error
+
+	return users, total, err
 }
 
 func (r *userRepository) Create(user *models.User) error {
@@ -46,4 +69,19 @@ func (r *userRepository) CreateWithAddress(user *models.User, address *models.Us
 
 		return nil
 	})
+}
+
+func (r *userRepository) FindById(id uint) (*models.User, error) {
+	var user models.User
+
+	err := r.db.First(&user, id).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *userRepository) Update(user *models.User) error {
+	return r.db.Save(user).Error
 }
