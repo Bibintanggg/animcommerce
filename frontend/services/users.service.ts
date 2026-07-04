@@ -6,28 +6,32 @@ interface UsersResponse {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
 }
 
-export const getUsers = async ( page: number = 1,limit: number = 10 ): Promise<UsersResponse> => {
-  try {
-    const response = await api.get<{ data: User[]; total?: number }>(
-      "/superadmin/users",
-      {
-        params: { page, limit },
+export const getUsers = async (
+  page: number = 1,
+  limit: number = 10,
+  search?: string,
+): Promise<UsersResponse> => {
+  const response = await api.get<{ data: User[]; total: number }>(
+    "/superadmin/users",
+    {
+      params: {
+        page,
+        limit,
+        ...(search ? { search } : {}),
       },
-    );
+    },
+  );
 
-    const users = response.data.data || [];
-    const total = response.data.total || users.length;
+  const total = response.data.total;
 
-    return {
-      data: users,
-      total: total,
-      page: page,
-      limit: limit,
-    };
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    throw error;
-  }
+  return {
+    data: response.data.data,
+    total,
+    page,
+    limit,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
+  };
 };

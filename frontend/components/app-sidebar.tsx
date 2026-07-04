@@ -33,17 +33,30 @@ import {
 import { UserRole } from "@/types/user";
 import { useQuery } from "@tanstack/react-query";
 import { login } from "@/services/auth.service";
+import { useRouter } from "next/navigation";
+
+type MenuItem = {
+    title: string;
+    href: string;
+    icon: LucideIcon;
+    roles: UserRole[];
+};
 
 export function AppSidebar() {
-    const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null 
-    console.log(user)   
+    const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null
 
-    type MenuItem = {
-        title: string;
-        href: string;
-        icon: LucideIcon;
-        roles: UserRole[];
-    };
+    const router = useRouter()
+
+    const logout = async () => {
+        try {
+            localStorage.removeItem("token")
+            localStorage.removeItem("user")
+
+            router.push('/login')
+        } catch (error) {
+            console.log(error)
+        }
+    }
 
     const menus: MenuItem[] = [
         {
@@ -99,50 +112,24 @@ export function AppSidebar() {
                     <SidebarGroupLabel className="text-sm">Main Menu</SidebarGroupLabel>
 
                     <SidebarMenu className="space-y-2">
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild>
-                                <Link href="/superadmin/dashboard">
-                                    <LayoutDashboard size={20} />
-                                    <span className="text-base font-medium">Dashboard</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
+                        {menus
+                            .filter((menu) => menu.roles.includes(user?.role))
+                            .map((menu) => {
+                                const Icon = menu.icon;
 
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild>
-                                <Link href="/admin/products">
-                                    <Package size={20} />
-                                    <span className="text-base font-medium">Products</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild>
-                                <Link href="/admin/orders">
-                                    <ShoppingCart size={20} />
-                                    <span className="text-base font-medium">Orders</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild>
-                                <Link href="/superadmin/users">
-                                    <Users size={20} />
-                                    <span className="text-base font-medium">Users</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild>
-                                <Link href="/settings">
-                                    <Settings size={20} />
-                                    <span className="text-base font-medium">Settings</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
+                                return (
+                                    <SidebarMenuItem key={menu.title}>
+                                        <SidebarMenuButton asChild>
+                                            <Link href={menu.href}>
+                                                <Icon size={20} />
+                                                <span className="text-base font-medium">
+                                                    {menu.title}
+                                                </span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                );
+                            })}
                     </SidebarMenu>
                 </SidebarGroup>
             </SidebarContent>
@@ -185,7 +172,7 @@ export function AppSidebar() {
                                     Settings
                                 </DropdownMenuItem>
 
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={logout}>
                                     Logout
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
