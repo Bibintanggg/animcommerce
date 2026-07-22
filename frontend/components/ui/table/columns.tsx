@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Badge } from "../badge";
 import { Button } from "../button";
+import { useRouter } from "next/navigation";
 
 export const roleOptions = [
   { label: "Admin", value: "admin" },
@@ -130,7 +131,9 @@ export const columns: ColumnDef<User>[] = [
     id: "actions",
     header: "Aksi",
     cell: ({ row }) => {
+      const router = useRouter();
       const user = row.original;
+
       return (
         <div className="flex items-center gap-1">
           <Button
@@ -138,7 +141,7 @@ export const columns: ColumnDef<User>[] = [
             variant="ghost"
             className="h-7 w-7"
             title="Edit"
-            onClick={() => console.log("edit", user.id)}
+            onClick={() => router.push(`superadmin/users/${user.id}/edit`)}
           >
             <Pencil className="h-3.5 w-3.5" />
           </Button>

@@ -28,12 +28,15 @@ import { PaginationState } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
 import { User } from "@/types/user";
 import { Badge } from "@/components/ui/badge";
+import EditModal from "@/components/EditModal";
 
 export default function ManageUsers() {
   const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [openEditModal, setOpenEditModal] = useState(false);
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -49,7 +52,12 @@ export default function ManageUsers() {
   }, [search]);
 
   const { data, isLoading, isFetching, error } = useQuery({
-    queryKey: ["users", pagination.pageIndex, pagination.pageSize, debouncedSearch],
+    queryKey: [
+      "users",
+      pagination.pageIndex,
+      pagination.pageSize,
+      debouncedSearch,
+    ],
     queryFn: () =>
       getUsers(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch),
     placeholderData: keepPreviousData,
@@ -71,6 +79,11 @@ export default function ManageUsers() {
     (u) => u.email_verified_at !== null,
   ).length;
 
+  const handleEdit = (user: User) => {
+    setSelectedUser(user);
+    setOpenEditModal(true);
+  };
+
   const handleResetPassword = (user: User) => {
     // TODO: panggil endpoint reset password, atau buka modal konfirmasi
     console.log("reset password for", user.id);
@@ -83,7 +96,6 @@ export default function ManageUsers() {
 
   return (
     <div className="p-10">
-
       <section className="mt-10">
         <div className="flex items-start justify-between gap-4 mb-6">
           <SectionTitle
@@ -101,25 +113,60 @@ export default function ManageUsers() {
           </CreateModal>
         </div>
 
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <SectionTitle
+            title="Manajemen Pengguna"
+            sub="Daftar lengkap seluruh pengguna, bisa difilter dan dicari"
+          />
+
+          <EditModal
+            open={openEditModal}
+            onOpenChange={setOpenEditModal}
+            title="Edit Pengguna"
+            description="Perbarui informasi pengguna"
+            url="http://localhost:8080/api/superadmin/users"
+            trigger={<Button>Edit Pengguna</Button>}
+          >
+            <UserForm
+              mode="edit"
+              user={selectedUser}
+              url={`http://localhost:8080/api/superadmin/users/${selectedUser?.id}`}
+              method="PUT"
+            />
+          </EditModal>
+        </div>
+
         <DataTable
           data={usersData}
           columns={[
-            { type: "avatar", header: "Pengguna", titleKey: "name", subtitleKey: "email" },
+            {
+              type: "avatar",
+              header: "Pengguna",
+              titleKey: "name",
+              subtitleKey: "email",
+            },
             {
               type: "custom",
               header: "Alamat",
               render: (user) => {
                 const addresses = user.addresses || [];
-                const mainAddress = addresses.find((a) => a.is_default) || addresses[0];
-                if (!mainAddress) return <span className="text-sm text-muted-foreground">-</span>;
+                const mainAddress =
+                  addresses.find((a) => a.is_default) || addresses[0];
+                if (!mainAddress)
+                  return (
+                    <span className="text-sm text-muted-foreground">-</span>
+                  );
                 return (
                   <div className="flex items-center gap-1 text-sm">
                     <MapPin className="h-3 w-3 text-muted-foreground" />
                     <span className="truncate max-w-[200px]">
-                      {mainAddress.address_line}, {mainAddress.city}, {mainAddress.postal_code}
+                      {mainAddress.address_line}, {mainAddress.city},{" "}
+                      {mainAddress.postal_code}
                     </span>
                     {mainAddress.is_default && (
-                      <Badge variant="outline" className="text-xs ml-1">Default</Badge>
+                      <Badge variant="outline" className="text-xs ml-1">
+                        Default
+                      </Badge>
                     )}
                   </div>
                 );
@@ -129,16 +176,39 @@ export default function ManageUsers() {
               type: "badge",
               header: "Role",
               key: "role",
-              variantMap: { admin: "default", superadmin: "destructive", customer: "secondary" },
-              labelMap: { admin: "Admin", superadmin: "Super Admin", customer: "Customer" },
+              variantMap: {
+                admin: "default",
+                superadmin: "destructive",
+                customer: "secondary",
+              },
+              labelMap: {
+                admin: "Admin",
+                superadmin: "Super Admin",
+                customer: "Customer",
+              },
             },
-            { type: "iconStatus", header: "Verifikasi", key: "email_verified_at", trueIcon: ShieldCheck, falseIcon: ShieldOff },
+            {
+              type: "iconStatus",
+              header: "Verifikasi",
+              key: "email_verified_at",
+              trueIcon: ShieldCheck,
+              falseIcon: ShieldOff,
+            },
             { type: "date", header: "Bergabung", key: "created_at" },
           ]}
           actions={[
-            { icon: Pencil, label: "Edit", onClick: (u) => router.push(`/users/${u.id}`) },
-            { icon: KeyRound, label: "Reset password", onClick: handleResetPassword },
-            { icon: Trash2, label: "Hapus", onClick: handleDelete, className: "text-destructive" },
+            { icon: Pencil, label: "Edit", onClick: (u) => handleEdit(u) },
+            {
+              icon: KeyRound,
+              label: "Reset password",
+              onClick: handleResetPassword,
+            },
+            {
+              icon: Trash2,
+              label: "Hapus",
+              onClick: handleDelete,
+              className: "text-destructive",
+            },
           ]}
           searchValue={search}
           onSearchChange={setSearch}
@@ -148,7 +218,9 @@ export default function ManageUsers() {
         />
 
         {isFetching && !isLoading && (
-          <span className="text-xs text-muted-foreground">Memperbarui data...</span>
+          <span className="text-xs text-muted-foreground">
+            Memperbarui data...
+          </span>
         )}
       </section>
     </div>

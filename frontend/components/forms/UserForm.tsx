@@ -3,12 +3,15 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserRole } from "@/types/user";
+import { User, UserRole } from "@/types/user";
 import { gooeyToast } from "goey-toast";
 import React, { useState } from "react";
 
 interface UserFormProps {
     url: string
+    mode?: "create" | "edit";
+    user?: User | null;
+    method?: "PUT" | "POST";
 }
 
 interface Address {
@@ -20,7 +23,7 @@ interface Address {
     is_default: boolean;
 }
 
-export function UserForm({ url }: UserFormProps) {
+export function UserForm({ url, mode = "create", user, method }: UserFormProps) {
     const [formData, setFormData] = useState<{
         name: string,
         password: string,
