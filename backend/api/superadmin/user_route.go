@@ -22,4 +22,5 @@ func (r *UserRoute) Register() {
 	r.api.GET("/users", r.userHandler.GetAllUser)
 	r.api.POST("/users", r.userHandler.CreateUser)
 	r.api.PUT("/users/:id", r.userHandler.UpdateUser)
+	r.api.DELETE("/users/:id", r.userHandler.Delete)
 }

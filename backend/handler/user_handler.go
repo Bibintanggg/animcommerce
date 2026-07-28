@@ -180,3 +180,26 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		"data":    result,
 	})
 }
+
+func (h *UserHandler) Delete(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid user ID",
+		})
+		return
+	}
+
+	err = h.service.DeleteUser(uint(id))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Successfully deleted user!",
+	})
+
+}

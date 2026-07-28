@@ -13,6 +13,7 @@ type UserRepository interface {
 	CreateWithAddress(user *models.User, address *models.UserAddress) error
 	FindById(id uint) (*models.User, error)
 	Update(user *models.User) error
+	Delete(user *models.User) error
 }
 
 type userRepository struct {
@@ -84,4 +85,8 @@ func (r *userRepository) FindById(id uint) (*models.User, error) {
 
 func (r *userRepository) Update(user *models.User) error {
 	return r.db.Save(user).Error
+}
+
+func (r *userRepository) Delete(user *models.User) error {
+	return r.db.Delete(user).Error
 }

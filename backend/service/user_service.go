@@ -4,6 +4,7 @@ import (
 	"animcommerce/backend/dto"
 	"animcommerce/backend/models"
 	"animcommerce/backend/repository"
+	"errors"
 )
 
 type UserService interface {
@@ -11,6 +12,7 @@ type UserService interface {
 	CreateUser(user models.User) (models.User, error)
 	CreateUserWithAddress(user models.User, address models.UserAddress) (models.User, error)
 	UpdateUser(id uint, user models.User) (models.User, error)
+	DeleteUser(id uint) error
 }
 
 type userService struct {
@@ -56,4 +58,17 @@ func (s *userService) UpdateUser(id uint, user models.User) (models.User, error)
 	}
 
 	return *existingUser, err
+}
+
+func (s *userService) DeleteUser(id uint) error {
+	user, err := s.repo.FindById(id)
+	if err != nil {
+		return err
+	}
+
+	if user.Role == "superadmin" {
+		return errors.New("Superadmin tidak dapat dihapus !!")
+	}
+
+	return s.repo.Delete(user)
 }
