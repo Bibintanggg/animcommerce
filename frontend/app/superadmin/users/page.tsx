@@ -22,13 +22,14 @@ import { Button } from "@/components/ui/button";
 import CreateModal from "@/components/CreateModal";
 import { UserForm } from "../../../components/forms/UserForm";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { getUsers } from "@/services/users.service";
+import { deleteUser, getUsers } from "@/services/users.service";
 import { useEffect, useState } from "react";
 import { PaginationState } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
 import { User } from "@/types/user";
 import { Badge } from "@/components/ui/badge";
 import EditModal from "@/components/EditModal";
+import DeleteModal from "@/components/DeleteModal";
 
 export default function ManageUsers() {
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function ManageUsers() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [openEditModal, setOpenEditModal] = useState(false);
+  const [openDeleteModal, setOpenDeleteModal] = useState(false);
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -90,8 +92,8 @@ export default function ManageUsers() {
   };
 
   const handleDelete = (user: User) => {
-    // TODO: buka confirm dialog, baru call API delete pas confirm
     setDeleteTarget(user);
+    setOpenDeleteModal(true);
   };
 
   return (
@@ -114,18 +116,12 @@ export default function ManageUsers() {
         </div>
 
         <div className="flex items-start justify-between gap-4 mb-6">
-          <SectionTitle
-            title="Manajemen Pengguna"
-            sub="Daftar lengkap seluruh pengguna, bisa difilter dan dicari"
-          />
-
           <EditModal
             open={openEditModal}
             onOpenChange={setOpenEditModal}
             title="Edit Pengguna"
             description="Perbarui informasi pengguna"
             url="http://localhost:8080/api/superadmin/users"
-            trigger={<Button>Edit Pengguna</Button>}
           >
             <UserForm
               mode="edit"
@@ -135,6 +131,24 @@ export default function ManageUsers() {
             />
           </EditModal>
         </div>
+
+        <DeleteModal
+          open={openDeleteModal}
+          onOpenChange={setOpenDeleteModal}
+          title="Hapus Pengguna"
+          description={`Apakah kamu yakin ingin menghapus ${deleteTarget?.name}?`}
+        >
+          <Button
+            variant="destructive"
+            onClick={async () => {
+              if (!deleteTarget) return;
+              await deleteUser(deleteTarget.id);
+              setOpenDeleteModal(false);
+            }}
+          >
+            Hapus
+          </Button>
+        </DeleteModal>
 
         <DataTable
           data={usersData}

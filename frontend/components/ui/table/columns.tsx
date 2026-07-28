@@ -18,13 +18,18 @@ import { Badge } from "../badge";
 import { Button } from "../button";
 import { useRouter } from "next/navigation";
 
+interface UserColumnsProps {
+  onEdit: (user: User) => void;
+  onDelete: (user: User) => void;
+}
+
 export const roleOptions = [
   { label: "Admin", value: "admin" },
   { label: "Customer", value: "customer" },
   { label: "Super Admin", value: "superadmin" },
 ];
 
-export const columns: ColumnDef<User>[] = [
+export const columns = ({ onEdit, onDelete}: UserColumnsProps): ColumnDef<User>[] => [
   {
     accessorKey: "id",
     header: "ID",
@@ -131,7 +136,6 @@ export const columns: ColumnDef<User>[] = [
     id: "actions",
     header: "Aksi",
     cell: ({ row }) => {
-      const router = useRouter();
       const user = row.original;
 
       return (
@@ -141,7 +145,7 @@ export const columns: ColumnDef<User>[] = [
             variant="ghost"
             className="h-7 w-7"
             title="Edit"
-            onClick={() => router.push(`superadmin/users/${user.id}/edit`)}
+            onClick={() => onEdit(user)}
           >
             <Pencil className="h-3.5 w-3.5" />
           </Button>
@@ -159,7 +163,7 @@ export const columns: ColumnDef<User>[] = [
             variant="ghost"
             className="h-7 w-7 text-destructive hover:text-destructive"
             title="Hapus"
-            onClick={() => console.log("delete", user.id)}
+            onClick={() => onDelete(user)}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>

@@ -9,6 +9,10 @@ interface UsersResponse {
   totalPages: number;
 }
 
+interface DeleteUserResponse {
+  message: string
+}
+
 export const getUsers = async (
   page: number = 1,
   limit: number = 10,
@@ -35,3 +39,8 @@ export const getUsers = async (
     totalPages: Math.max(1, Math.ceil(total / limit)),
   };
 };
+
+export const deleteUser = async (userId: number) => {
+  const response = await api.delete<DeleteUserResponse>(`/superadmin/users/${userId}`);
+  return response.data
+}

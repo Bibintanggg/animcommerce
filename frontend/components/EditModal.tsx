@@ -8,7 +8,7 @@ interface EditModal {
     description?: string
     url: string
     children: React.ReactNode
-    trigger: React.ReactNode
+    trigger?: React.ReactNode
 }
 
 export default function EditModal({ open, onOpenChange, title, description, children, trigger, url }: EditModal) {
