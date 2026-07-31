@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, UserRole } from "@/types/user";
 import { gooeyToast } from "goey-toast";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 interface UserFormProps {
     url: string
@@ -41,6 +41,32 @@ export function UserForm({ url, mode = "create", user, method }: UserFormProps) 
     const [showAddress, setShowAddress] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (mode == "edit" && user) {
+            setFormData({
+                name: user.name, 
+                email: user.email,
+                password: "",
+                role: user.role,
+                user_address: user.addresses?.[0]
+                ? {
+                    receiver_name: user.addresses[0].receiver_name,
+                    phone_number: user.addresses[0].phone_number,
+                    address_line: user.addresses[0].address_line,
+                    city: user.addresses[0].city,
+                    postal_code: user.addresses[0].postal_code,
+                    is_default: user.addresses[0].is_default,
+                } : null             
+            });
+
+            setShowAddress(!!user.addresses?.length)
+        }
+
+        if (mode == "create") {
+            
+        }
+    })
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

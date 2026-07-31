@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { Product } from "@/types/product";
+import { ProductCategory } from "@/enums/product-category";
 
 interface ProductResponse {
     data: Product[];
