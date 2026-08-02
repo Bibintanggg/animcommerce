@@ -11,7 +11,7 @@ type User struct {
 	Email     string        `gorm:"unique; not null" json:"email"`
 	Password  string        `json:"-" gorm:"not null"`
 	Role      enum.UserRole `gorm:"default:customer" json:"role"`
-	Addresses []UserAddress `gorm:"foreignKey:UserID" json:"addresses,omitempty"`
+	Addresses []UserAddress `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"addresses,omitempty"`
 	CreatedAt time.Time     `json:"created_at"`
 	UpdatedAt time.Time     `json:"updated_at"`
 }

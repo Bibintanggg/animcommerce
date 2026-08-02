@@ -5,6 +5,7 @@ import (
 	"animcommerce/backend/models"
 	"animcommerce/backend/repository"
 	"errors"
+	"time"
 )
 
 type UserService interface {
@@ -13,6 +14,7 @@ type UserService interface {
 	CreateUserWithAddress(user models.User, address models.UserAddress) (models.User, error)
 	UpdateUser(id uint, user models.User) (models.User, error)
 	DeleteUser(id uint) error
+	GetRecentRegisteredUsers(limit int) ([]dto.RecentActivityResponse, error)
 }
 
 type userService struct {
@@ -71,4 +73,24 @@ func (s *userService) DeleteUser(id uint) error {
 	}
 
 	return s.repo.Delete(user)
+}
+
+func (s *userService) GetRecentRegisteredUsers(limit int) ([]dto.RecentActivityResponse, error) {
+	users, err := s.repo.GetRecentRegisteredUsers(limit)
+	if err != nil {
+		return nil, err
+	}
+
+	activities := make([]dto.RecentActivityResponse, 0, len(users))
+	for _, u := range users {
+		activities = append(activities, dto.RecentActivityResponse{
+			ID:     u.ID,
+			User:   u.Name,
+			Type:   "register",
+			Detail: "Mendaftar sebagai pengguna baru",
+			Time:   u.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
+	return activities, nil
 }

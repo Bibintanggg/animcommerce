@@ -14,6 +14,7 @@ type UserRepository interface {
 	FindById(id uint) (*models.User, error)
 	Update(user *models.User) error
 	Delete(user *models.User) error
+	GetRecentRegisteredUsers(limit int) ([]models.User, error)
 }
 
 type userRepository struct {
@@ -88,5 +89,24 @@ func (r *userRepository) Update(user *models.User) error {
 }
 
 func (r *userRepository) Delete(user *models.User) error {
-	return r.db.Delete(user).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("user_id = ?", user.ID).Delete(&models.UserAddress{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Delete(user).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func (r *userRepository) GetRecentRegisteredUsers(limit int) ([]models.User, error) {
+	var users []models.User
+	err := r.db.Order("created_at DESC").Limit(limit).Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
 }
