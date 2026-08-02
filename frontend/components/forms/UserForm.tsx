@@ -45,28 +45,36 @@ export function UserForm({ url, mode = "create", user, method }: UserFormProps) 
     useEffect(() => {
         if (mode == "edit" && user) {
             setFormData({
-                name: user.name, 
+                name: user.name,
                 email: user.email,
                 password: "",
                 role: user.role,
                 user_address: user.addresses?.[0]
-                ? {
-                    receiver_name: user.addresses[0].receiver_name,
-                    phone_number: user.addresses[0].phone_number,
-                    address_line: user.addresses[0].address_line,
-                    city: user.addresses[0].city,
-                    postal_code: user.addresses[0].postal_code,
-                    is_default: user.addresses[0].is_default,
-                } : null             
+                    ? {
+                        receiver_name: user.addresses[0].receiver_name,
+                        phone_number: user.addresses[0].phone_number,
+                        address_line: user.addresses[0].address_line,
+                        city: user.addresses[0].city,
+                        postal_code: user.addresses[0].postal_code,
+                        is_default: user.addresses[0].is_default,
+                    } : null
             });
 
             setShowAddress(!!user.addresses?.length)
         }
 
         if (mode == "create") {
-            
+            setFormData({
+                name: "",
+                email: "",
+                password: "",
+                role: "customer",
+                user_address: null,
+            });
+
+            setShowAddress(false);
         }
-    })
+    }, [user, mode])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -113,13 +121,17 @@ export function UserForm({ url, mode = "create", user, method }: UserFormProps) 
             role: formData.role,
         };
 
+        if (formData.password.trim()) {
+            payload.password == formData.password
+        }
+
         if (formData.user_address) {
             Object.assign(payload, { user_address: formData.user_address });
         }
 
         try {
             const response = await fetch(url, {
-                method: "POST",
+                method: mode === "edit" ? "PUT" : "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
@@ -208,7 +220,7 @@ export function UserForm({ url, mode = "create", user, method }: UserFormProps) 
                     ...formData,
                     password: e.target.value
                 })}
-                required
+                required={mode === "create"}
             />
 
             <Select

@@ -30,6 +30,7 @@ import { User } from "@/types/user";
 import { Badge } from "@/components/ui/badge";
 import EditModal from "@/components/EditModal";
 import DeleteModal from "@/components/DeleteModal";
+import { goeyToast } from "goey-toast";
 
 export default function ManageUsers() {
   const router = useRouter();
@@ -142,8 +143,16 @@ export default function ManageUsers() {
             variant="destructive"
             onClick={async () => {
               if (!deleteTarget) return;
-              await deleteUser(deleteTarget.id);
-              setOpenDeleteModal(false);
+
+              try {
+                await deleteUser(deleteTarget.id);
+                goeyToast.success("Pengguna Berhasil Dihapus!")
+                setOpenDeleteModal(false);
+              } catch(err) {
+                goeyToast.error (
+                  err instanceof Error ? err.message : "Pengguna gagal dihapus!"
+                )
+              }
             }}
           >
             Hapus

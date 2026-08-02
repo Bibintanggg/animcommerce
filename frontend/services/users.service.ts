@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { RecentActivity } from "@/types/recent-activity";
 import { User } from "@/types/user";
 
 interface UsersResponse {
@@ -11,6 +12,10 @@ interface UsersResponse {
 
 interface DeleteUserResponse {
   message: string
+}
+
+interface ActivityRegisteredResponse {
+  data: RecentActivity[];
 }
 
 export const getUsers = async (
@@ -44,3 +49,12 @@ export const deleteUser = async (userId: number) => {
   const response = await api.delete<DeleteUserResponse>(`/superadmin/users/${userId}`);
   return response.data
 }
+
+export const getRecentRegisteredUsers = async (limit: number = 5): Promise<RecentActivity[]> => {
+  const response = await api.get<ActivityRegisteredResponse>("/superadmin/dashboard", {
+    params: {
+      limit,
+    },
+  });
+  return response.data.data;
+};

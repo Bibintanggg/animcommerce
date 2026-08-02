@@ -38,72 +38,11 @@ import { getInitials } from "@/helper/getInitials";
 import { data } from "@/data/user-data";
 import StatCard from "@/components/StatCards";
 import SectionTitle from "@/components/SectionTitle";
-import UserMap from "@/components/UserMap"; 
+import UserMap from "@/components/UserMap";
 import { columns } from "@/components/ui/table/columns";
+import { getRecentRegisteredUsers } from "@/services/users.service";
+import { useQuery } from "@tanstack/react-query";
 
-
-const recentActivity: ActivityLog[] = [
-    {
-        id: 1,
-        user: "Rina Kartika",
-        type: "checkout",
-        detail: "Menyelesaikan pesanan #ORD-2841",
-        time: "2 menit lalu",
-        amount: "Rp 345.000",
-    },
-    {
-        id: 2,
-        user: "Budi Santoso",
-        type: "order_shipped",
-        detail: "Pesanan #ORD-2839 sudah dikirim via JNE",
-        time: "15 menit lalu",
-    },
-    {
-        id: 3,
-        user: "Hendra Gunawan",
-        type: "checkout",
-        detail: "Menyelesaikan pesanan #ORD-2840",
-        time: "32 menit lalu",
-        amount: "Rp 128.500",
-    },
-    {
-        id: 4,
-        user: "Pengguna baru",
-        type: "register",
-        detail: "Akun baru terdaftar dari Surabaya",
-        time: "1 jam lalu",
-    },
-    {
-        id: 5,
-        user: "Andi Pratama",
-        type: "payment_failed",
-        detail: "Pembayaran gagal untuk pesanan #ORD-2835",
-        time: "2 jam lalu",
-        amount: "Rp 89.000",
-    },
-    {
-        id: 6,
-        user: "Siti Nurhaliza",
-        type: "checkout",
-        detail: "Menyelesaikan pesanan #ORD-2833",
-        time: "3 jam lalu",
-        amount: "Rp 215.000",
-    },
-    {
-        id: 7,
-        user: "Reza Firmansyah",
-        type: "login",
-        detail: "Login dari perangkat baru (MacOS – Chrome)",
-        time: "4 jam lalu",
-    },
-    {
-        id: 8,
-        user: "Lina Marlina",
-        type: "register",
-        detail: "Akun baru terdaftar dari Semarang",
-        time: "5 jam lalu",
-    },
-];
 
 const userOrigins: UserOrigin[] = [
     { city: "Jakarta", count: 3, color: "#378ADD" },
@@ -117,12 +56,17 @@ const userOrigins: UserOrigin[] = [
 ];
 
 
-const totalCheckouts = recentActivity.filter((a) => a.type === "checkout").length;
-const totalPaymentFailed = recentActivity.filter((a) => a.type === "payment_failed").length;
 const maxOrigin = Math.max(...userOrigins.map((o) => o.count));
 
 
 export default function SuperadminDashboard() {
+    const { data: recentActivity = [], isLoading } = useQuery({
+        queryKey: ["recent-activity"],
+        queryFn: () => getRecentRegisteredUsers(5),
+    })
+
+    const totalCheckouts = recentActivity.filter((a) => a.type === "checkout").length;
+    const totalPaymentFailed = recentActivity.filter((a) => a.type === "payment_failed").length;
     return (
         <div className="w-full p-6 md:p-10 space-y-10 max-w-[1400px] mx-auto">
             <section>
