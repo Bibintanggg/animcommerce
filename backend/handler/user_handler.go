@@ -204,22 +204,32 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 }
 
-func (h *UserHandler) GetRecentRegisteredUsers(c *gin.Context) {
-	limit, err := strconv.Atoi(c.DefaultQuery("limit", "5"))
-	if err != nil || limit < 1 {
-		limit = 5
+func (h *UserHandler) ResetPassword(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 64, 10)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid User ID",
+		})
+		return
 	}
 
-	activities, err := h.service.GetRecentRegisteredUsers(limit)
-	if err != nil {
+	var req dto.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err := h.service.ResetPassword(uint(id), req.NewPassword); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to get recent registered users",
-			"error":   err.Error(),
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data": activities,
+		"message": "Successfully reset Password!",
 	})
+
 }

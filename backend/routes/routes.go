@@ -34,6 +34,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	userRepository := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepository)
 	userHandler := handler.NewUserHandler(userService)
+	dashboardHandler := handler.NewDashboardHandler(userService)
 
 	cartRepository := repository.NewCartRepository(db)
 	cartService := service.NewCartService(
@@ -96,6 +97,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				),
 			)
 			superadmin.NewUserRoute(superadminGroup, userHandler).Register()
+			superadmin.NewDashboardRoute(superadminGroup, dashboardHandler).Register()
 		}
 	}
 }

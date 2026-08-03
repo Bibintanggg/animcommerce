@@ -6,6 +6,8 @@ import (
 	"animcommerce/backend/repository"
 	"errors"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
@@ -15,6 +17,7 @@ type UserService interface {
 	UpdateUser(id uint, user models.User) (models.User, error)
 	DeleteUser(id uint) error
 	GetRecentRegisteredUsers(limit int) ([]dto.RecentActivityResponse, error)
+	ResetPassword(id uint, newPassword string) error
 }
 
 type userService struct {
@@ -93,4 +96,17 @@ func (s *userService) GetRecentRegisteredUsers(limit int) ([]dto.RecentActivityR
 	}
 
 	return activities, nil
+}
+
+func (s *userService) ResetPassword(id uint, newPassword string) error {
+	hash, err := bcrypt.GenerateFromPassword(
+		[]byte(newPassword),
+		bcrypt.DefaultCost,
+	)
+	
+	if err != nil {
+		return err
+	}
+
+	return s.repo.ResetPassword(id, string(hash))
 }

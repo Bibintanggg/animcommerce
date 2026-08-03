@@ -15,6 +15,7 @@ type UserRepository interface {
 	Update(user *models.User) error
 	Delete(user *models.User) error
 	GetRecentRegisteredUsers(limit int) ([]models.User, error)
+	ResetPassword(id uint, newPassword string) error
 }
 
 type userRepository struct {
@@ -109,4 +110,8 @@ func (r *userRepository) GetRecentRegisteredUsers(limit int) ([]models.User, err
 		return nil, err
 	}
 	return users, nil
+}
+
+func (r *userRepository) ResetPassword(id uint, newPassword string) error {
+	return r.db.Model(&models.User{}).Where("id = ?", id).Update("password", newPassword).Error
 }
