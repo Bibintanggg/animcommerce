@@ -8,7 +8,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  addresses?: UserAddress[]; 
+  addresses?: UserAddress[];
   user_address?: string;
   status: UserStatus;
   email_verified_at: string | null;
@@ -24,4 +24,17 @@ export interface UsersResponse {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
+}
+
+export interface DeleteUserResponse {
+  message: string
+}
+
+export interface ResetPasswordRequest {
+  new_password: string
+}
+
+export interface ResetPasswordResponse {
+  message: string
 }

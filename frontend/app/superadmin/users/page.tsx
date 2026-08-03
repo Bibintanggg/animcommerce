@@ -31,15 +31,21 @@ import { Badge } from "@/components/ui/badge";
 import EditModal from "@/components/EditModal";
 import DeleteModal from "@/components/DeleteModal";
 import { goeyToast } from "goey-toast";
+import ResetPasswordModal from "@/components/ResetPasswordModal";
 
 export default function ManageUsers() {
   const router = useRouter();
-  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
   const [openEditModal, setOpenEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+
+  const [openResetModal, setOpenResetModal] = useState(false)
+  const [resetTarget, setResetTarget] = useState<User | null>(null)
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -88,8 +94,8 @@ export default function ManageUsers() {
   };
 
   const handleResetPassword = (user: User) => {
-    // TODO: panggil endpoint reset password, atau buka modal konfirmasi
-    console.log("reset password for", user.id);
+    setResetTarget(user)
+    setOpenResetModal(true)
   };
 
   const handleDelete = (user: User) => {
@@ -122,7 +128,6 @@ export default function ManageUsers() {
             onOpenChange={setOpenEditModal}
             title="Edit Pengguna"
             description="Perbarui informasi pengguna"
-            url="http://localhost:8080/api/superadmin/users"
           >
             <UserForm
               mode="edit"
@@ -148,8 +153,8 @@ export default function ManageUsers() {
                 await deleteUser(deleteTarget.id);
                 goeyToast.success("Pengguna Berhasil Dihapus!")
                 setOpenDeleteModal(false);
-              } catch(err) {
-                goeyToast.error (
+              } catch (err) {
+                goeyToast.error(
                   err instanceof Error ? err.message : "Pengguna gagal dihapus!"
                 )
               }
@@ -158,6 +163,12 @@ export default function ManageUsers() {
             Hapus
           </Button>
         </DeleteModal>
+
+        <ResetPasswordModal
+          open={openResetModal}
+          onOpenChange={setOpenResetModal}
+          user={resetTarget}
+        />
 
         <DataTable
           data={usersData}

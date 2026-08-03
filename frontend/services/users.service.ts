@@ -1,22 +1,12 @@
 import api from "@/lib/api";
 import { RecentActivity } from "@/types/recent-activity";
-import { User } from "@/types/user";
+import { DeleteUserResponse, ResetPasswordRequest, ResetPasswordResponse, User, UsersResponse } from "@/types/user";
 
-interface UsersResponse {
-  data: User[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-interface DeleteUserResponse {
-  message: string
-}
 
 interface ActivityRegisteredResponse {
   data: RecentActivity[];
 }
+
 
 export const getUsers = async (
   page: number = 1,
@@ -58,3 +48,8 @@ export const getRecentRegisteredUsers = async (limit: number = 5): Promise<Recen
   });
   return response.data.data;
 };
+
+export const usersResetPassword = async (userId: number, data: ResetPasswordRequest) => {
+  const response = await api.patch<ResetPasswordResponse>(`/superadmin/users/${userId}/reset-password`, data)
+  return response.data.message
+}

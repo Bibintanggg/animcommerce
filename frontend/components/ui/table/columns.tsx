@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 interface UserColumnsProps {
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
+  onReset: (user: User) => void
 }
 
 export const roleOptions = [
@@ -29,7 +30,7 @@ export const roleOptions = [
   { label: "Super Admin", value: "superadmin" },
 ];
 
-export const columns = ({ onEdit, onDelete}: UserColumnsProps): ColumnDef<User>[] => [
+export const columns = ({ onEdit, onDelete, onReset}: UserColumnsProps): ColumnDef<User>[] => [
   {
     accessorKey: "id",
     header: "ID",
@@ -154,7 +155,7 @@ export const columns = ({ onEdit, onDelete}: UserColumnsProps): ColumnDef<User>[
             variant="ghost"
             className="h-7 w-7"
             title="Reset password"
-            onClick={() => console.log("reset password", user.id)}
+            onClick={() => onReset(user)}
           >
             <KeyRound className="h-3.5 w-3.5" />
           </Button>

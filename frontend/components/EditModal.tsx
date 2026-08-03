@@ -6,12 +6,11 @@ interface EditModal {
     onOpenChange: (open: boolean) => void
     title: string
     description?: string
-    url: string
     children: React.ReactNode
     trigger?: React.ReactNode
 }
 
-export default function EditModal({ open, onOpenChange, title, description, children, trigger, url }: EditModal) {
+export default function EditModal({ open, onOpenChange, title, description, children, trigger }: EditModal) {
     return (
         <div>
             <Dialog open={open} onOpenChange={onOpenChange}>
@@ -22,17 +21,10 @@ export default function EditModal({ open, onOpenChange, title, description, chil
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{title}</DialogTitle>
-                        <DialogDescription>
-                            {description}
-                        </DialogDescription>
+                        <DialogDescription>{description}</DialogDescription>
                     </DialogHeader>
 
-                    {React.isValidElement(children)
-                        ? React.cloneElement(
-                            children as React.ReactElement<any>,
-                            { url }
-                        )
-                        : children}
+                    {children}
                 </DialogContent>
             </Dialog>
         </div>

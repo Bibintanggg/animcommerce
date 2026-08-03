@@ -122,7 +122,7 @@ export function UserForm({ url, mode = "create", user, method }: UserFormProps) 
         };
 
         if (formData.password.trim()) {
-            payload.password == formData.password
+            payload.password = formData.password
         }
 
         if (formData.user_address) {
@@ -212,16 +212,20 @@ export function UserForm({ url, mode = "create", user, method }: UserFormProps) 
                 required
             />
 
-            <Input
-                type="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={(e) => setFormData({
-                    ...formData,
-                    password: e.target.value
-                })}
-                required={mode === "create"}
-            />
+            {mode === "create" && (
+                <Input
+                    type="password"
+                    placeholder="Password"
+                    value={formData.password}
+                    onChange={(e) =>
+                        setFormData({
+                            ...formData,
+                            password: e.target.value,
+                        })
+                    }
+                    required
+                />
+            )}
 
             <Select
                 value={formData.role}
