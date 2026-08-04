@@ -53,27 +53,41 @@ func (h *ProductHandler) GetProductDetails(c *gin.Context) {
 }
 
 func (h *ProductHandler) CreateProduct(c *gin.Context) {
-	var request dto.CreateProductRequest
+	var req dto.CreateProductRequest
 
-	err := c.ShouldBindJSON(&request)
-	if err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
 		})
 		return
 	}
-	userID, _ := c.Get("user_id")
-	response, err := h.service.CreateProduct(userID.(int64), request)
+
+	file, err := c.FormFile("thumbnail")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed created product",
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Thumbnail is required",
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	userID, _ := c.Get("user_id")
+
+	product, err := h.service.CreateProduct(
+		userID.(int64),
+		req,
+		file,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
 		"message": "Success created product",
-		"data":    response,
+		"data":    product,
 	})
 }
 
@@ -90,7 +104,7 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 
 	var request dto.UpdateProductRequest
 
-	err = c.ShouldBindJSON(&request)
+	err = c.ShouldBind(&request)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),

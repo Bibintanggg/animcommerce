@@ -77,10 +77,25 @@ export function DataTable<T extends Record<string, any>>({
               const subtitle = col.subtitleKey
                 ? String(row.original[col.subtitleKey] ?? "")
                 : undefined;
+              const imageUrl = col.imageKey
+                ? String(row.original[col.imageKey] ?? "")
+                : undefined;
+
               return (
                 <div className="flex items-center gap-3">
-                  <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold shrink-0">
-                    {getInitials(title)}
+                  <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center text-[10px] font-semibold shrink-0 overflow-hidden">
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={title}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      getInitials(title)
+                    )}
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="font-medium text-sm truncate">{title}</span>

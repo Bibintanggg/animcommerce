@@ -1,3 +1,5 @@
+import { ProductCategory } from "@/enums/product-category";
+
 export interface Product {
     id: number;
     title: string;
@@ -6,7 +8,7 @@ export interface Product {
     description: string;
     price: number;
     stock: number
-    isActive: ProductStatus;
+    is_active: ProductStatus;
     createdAt: string;
     updatedAt: string;
     category: ProductCategory

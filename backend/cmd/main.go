@@ -12,13 +12,15 @@ import (
 )
 
 func main() {
-	db := config.ConnectDB()
-	database.MigrateDB(db)
-
 	err := godotenv.Load("../.env")
 	if err != nil {
 		panic("Cannot load env")
 	}
+
+	db := config.ConnectDB()
+	database.MigrateDB(db)
+
+	cld := config.NewCloudinaryClient()
 
 	r := gin.Default()
 
@@ -47,7 +49,7 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	routes.SetupRoutes(r, db)
+	routes.SetupRoutes(r, db, cld)
 
 	r.Run(":8080")
 }

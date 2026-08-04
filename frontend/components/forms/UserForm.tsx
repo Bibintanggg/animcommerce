@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, UserRole } from "@/types/user";
+import { useQueryClient } from "@tanstack/react-query";
 import { gooeyToast } from "goey-toast";
 import React, { useEffect, useState } from "react";
 
@@ -41,6 +42,7 @@ export function UserForm({ url, mode = "create", user, method }: UserFormProps) 
     const [showAddress, setShowAddress] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const queryClient = useQueryClient()
 
     useEffect(() => {
         if (mode == "edit" && user) {
@@ -145,7 +147,13 @@ export function UserForm({ url, mode = "create", user, method }: UserFormProps) 
                 throw new Error(result.message || "Gagal menyimpan data");
             }
 
-            gooeyToast.success("Pengguna berhasil ditambahkan");
+            await queryClient.invalidateQueries({
+                queryKey: ['users'],
+            })
+
+            gooeyToast.success (
+                mode == "edit" ? "Pengguna berhasil diperbarui" : "Pengguna berhasil ditambahkan"
+            )
 
             setFormData({
                 name: "",

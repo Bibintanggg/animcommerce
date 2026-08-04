@@ -63,7 +63,13 @@ export function AppSidebar() {
             title: "Dashboard",
             href: "/admin/dashboard",
             icon: LayoutDashboard,
-            roles: ["admin", "superadmin"],
+            roles: ["admin"],
+        },
+        {
+            title: "Dashboard",
+            href: "/superadmin/dashboard",
+            icon: LayoutDashboard,
+            roles: ["superadmin"],
         },
         {
             title: "Products",

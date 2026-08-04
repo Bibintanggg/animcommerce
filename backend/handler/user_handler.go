@@ -5,10 +5,13 @@ import (
 	"animcommerce/backend/models"
 	"animcommerce/backend/models/enum"
 	"animcommerce/backend/service"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -154,8 +157,40 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors := make(map[string]string)
+			message := ""
+			for _, field := range validationErrors {
+				name := strings.ToLower(field.Field())
+
+				var msg string
+				switch field.Tag() {
+				case "required":
+					msg = fmt.Sprintf("%s is required", field.Field())
+				case "email":
+					msg = "Invalid email format"
+				case "min":
+					msg = fmt.Sprintf("%s must be at least %s characters", field.Field(), field.Param())
+				default:
+					msg = "Invalid value"
+				}
+
+				errors[name] = msg
+
+				if message == "" {
+					message = msg
+				}
+			}
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": message,
+				"errors":  errors,
+			})
+			return
+		}
+
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
+			"message": "Invalid request body",
 		})
 		return
 	}
@@ -205,7 +240,7 @@ func (h *UserHandler) Delete(c *gin.Context) {
 }
 
 func (h *UserHandler) ResetPassword(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 64, 10)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "Invalid User ID",

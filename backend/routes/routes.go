@@ -10,12 +10,15 @@ import (
 	"animcommerce/backend/models/enum"
 	"animcommerce/backend/repository"
 	"animcommerce/backend/service"
+	"animcommerce/backend/storage/images"
 
+	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func SetupRoutes(r *gin.Engine, db *gorm.DB) {
+func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
+	storage := images.NewCloudinaryStorage(cld)
 
 	r.Static("/storage", "./storage")
 
@@ -28,7 +31,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	registerHandler := handler.NewRegisterHandler(registerService)
 
 	productRepository := repository.NewProductRepository(db)
-	productService := service.NewProductService(productRepository)
+	productService := service.NewProductService(productRepository, storage)
 	productHandler := handler.NewProductHandler(productService)
 
 	userRepository := repository.NewUserRepository(db)

@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import CreateModal from "@/components/CreateModal";
 import { UserForm } from "../../../components/forms/UserForm";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deleteUser, getUsers } from "@/services/users.service";
 import { useEffect, useState } from "react";
 import { PaginationState } from "@tanstack/react-table";
