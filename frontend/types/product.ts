@@ -1,4 +1,5 @@
 import { ProductCategory } from "@/enums/product-category";
+import { ProductStatus } from "@/enums/product-status";
 
 export interface Product {
     id: number;
@@ -9,7 +10,19 @@ export interface Product {
     price: number;
     stock: number
     is_active: ProductStatus;
-    createdAt: string;
-    updatedAt: string;
+    created_at: string;
+    updated_at: string;
     category: ProductCategory
+}
+
+export interface ProductsResponse {
+    data: Product[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface DeleteProductResponse {
+    message: string
 }

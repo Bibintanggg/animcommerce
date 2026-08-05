@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import { Product } from "@/types/product";
+import { DeleteProductResponse, Product, ProductsResponse } from "@/types/product";
 import { ProductCategory } from "@/enums/product-category";
 
 interface ProductResponse {
@@ -12,15 +12,38 @@ interface SingleProductResponse {
     message: string;
 }
 
-export const getProducts = async () => {
-    const response = await api.get<ProductResponse>('/products')
-    return response.data.data;
-}
+export const getProducts = async (
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+): Promise<ProductsResponse> => {
+
+    const response = await api.get<{
+        data: Product[];
+        total: number;
+    }>("/products", {
+        params: {
+            page,
+            limit,
+            ...(search ? { search } : {}),
+        },
+    });
+
+    const total = response.data.total;
+
+    return {
+        data: response.data.data,
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
+};
 
 export const getNewArrivals = async () => {
     const response = await api.get<ProductResponse>("/products")
     return response.data.data.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     ).slice(0, 8)
 }
 
@@ -72,4 +95,9 @@ export const updateProduct = async (url: string, formData: FormData) => {
     }
 
     return result.data as Product;
+}
+
+export const deleteProducts = async (userId: number) => {
+    const response = await api.delete<DeleteProductResponse>(`/admin/products/${userId}`)
+    return response.data.message
 }

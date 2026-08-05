@@ -12,6 +12,7 @@ import { gooeyToast } from "goey-toast";
 import { ImagePlus, X } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { createProduct, updateProduct } from "@/services/product.service";
+import { ProductStatus } from "@/enums/product-status";
 
 interface ProductFormProps {
     url: string
@@ -37,7 +38,7 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
         description: string,
         price: number,
         stock: number,
-        is_active: boolean,
+        is_active: ProductStatus,
         category: ProductCategory
     }>({
         title: "",
@@ -46,7 +47,7 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
         description: "",
         price: 0,
         stock: 0,
-        is_active: true,
+        is_active: ProductStatus.ProductDraft,
         category: ProductCategory.FigureCategry
     })
 
@@ -68,7 +69,7 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                 description: product.description,
                 price: product.price,
                 stock: product.stock,
-                is_active: !!product.is_active,
+                is_active: product.is_active,
                 category: product.category
             });
             setThumbnailPreview(product.thumbnail || null);
@@ -83,7 +84,7 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                 description: "",
                 price: 0,
                 stock: 0,
-                is_active: true,
+                is_active: ProductStatus.ProductDraft,
                 category: ProductCategory.FigureCategry
             });
             setThumbnailPreview(null);
@@ -191,9 +192,10 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
             // payload.append("price", String(formData.price));
             // payload.append("stock", String(formData.stock));
             // payload.append("is_active", String(formData.is_active));
-            // payload.append("category", formData.category);
+            // payload.append("category", formData.category)
 
             const body = new FormData();
+
 
             body.append("title", formData.title);
             body.append("slug", formData.slug);
@@ -228,7 +230,7 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                 description: "",
                 price: 0,
                 stock: 0,
-                is_active: true,
+                is_active: ProductStatus.ProductDraft,
                 category: ProductCategory.FigureCategry
             });
             setThumbnailFile(null);
@@ -315,40 +317,58 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                 </div>
             </div>
 
+            <hr className="border-t-2 border-black/40 w-full" />
+
             <div className="space-y-2">
-                <Label>Kategori</Label>
-                <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({
-                        ...formData,
-                        category: value as ProductCategory
-                    })}
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Kategori" />
-                    </SelectTrigger>
+                <Label className="mb-5">Kategori & Status</Label>
 
-                    <SelectContent>
-                        <SelectItem value={ProductCategory.FigureCategry}>Figure</SelectItem>
-                        <SelectItem value={ProductCategory.AccessoryCategory}>Accessory</SelectItem>
-                        <SelectItem value={ProductCategory.ShirtCategory}>Shirt</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Kategori</Label>
+                        <Select
+                            value={formData.category}
+                            onValueChange={(value) =>
+                                setFormData({
+                                    ...formData,
+                                    category: value as ProductCategory,
+                                })
+                            }
+                        >
+                            <SelectTrigger className="w-full h-11">
+                                <SelectValue placeholder="Pilih kategori" />
+                            </SelectTrigger>
 
-            <div className="flex items-center gap-2">
-                <input
-                    type="checkbox"
-                    id="is_active"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData({
-                        ...formData,
-                        is_active: e.target.checked
-                    })}
-                />
-                <label htmlFor="is_active" className="text-sm">
-                    Produk Aktif
-                </label>
+                            <SelectContent>
+                                <SelectItem value={ProductCategory.FigureCategry}>Figure</SelectItem>
+                                <SelectItem value={ProductCategory.AccessoryCategory}>Accessory</SelectItem>
+                                <SelectItem value={ProductCategory.ShirtCategory}>Shirt</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Select
+                            value={formData.is_active}
+                            onValueChange={(value) =>
+                                setFormData({
+                                    ...formData,
+                                    is_active: value as ProductStatus,
+                                })
+                            }
+                        >
+                            <SelectTrigger className="w-full h-11">
+                                <SelectValue placeholder="Pilih status" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value={ProductStatus.ProductDraft}>Draft</SelectItem>
+                                <SelectItem value={ProductStatus.ProductPublished}>Published</SelectItem>
+                                <SelectItem value={ProductStatus.ProductArchived}>Archived</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
             </div>
 
             {/* thumbnail uploader - paling bawah, besar, dengan animasi */}
