@@ -6,6 +6,6 @@ type CreateProductRequest struct {
 	Description string  `form:"description"`
 	Price       float64 `form:"price" binding:"required"`
 	Stock       int     `form:"stock" binding:"required"`
-	IsActive    bool    `form:"isActive"`
+	IsActive    string  `form:"isActive"`
 	Category    string  `form:"category"`
 }

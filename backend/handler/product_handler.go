@@ -21,8 +21,17 @@ func NewProductHandler(service service.ProductService) *ProductHandler {
 
 func (h *ProductHandler) GetProducts(c *gin.Context) {
 
-	products, err := h.service.GetProducts()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	search := c.Query("search")
 
+	filter := dto.ProductFilter{
+		Page:   page,
+		Limit:  limit,
+		Search: search,
+	}
+
+	products, total, err := h.service.GetProducts(filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Failed get products",
@@ -33,6 +42,7 @@ func (h *ProductHandler) GetProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success get products",
 		"data":    products,
+		"total":   total,
 	})
 }
 
@@ -112,7 +122,9 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	products, err := h.service.UpdateProduct(id, request)
+	fileHeader, _ := c.FormFile("thumbnail")
+
+	products, err := h.service.UpdateProduct(id, request, fileHeader)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Failed updated product",

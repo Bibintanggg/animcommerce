@@ -8,13 +8,15 @@ import (
 	"animcommerce/backend/storage/images" // sesuaikan path package images kamu
 	"errors"
 	"mime/multipart"
+
+	"github.com/gosimple/slug"
 )
 
 type ProductService interface {
-	GetProducts() ([]models.Product, error)
+	GetProducts(filter dto.ProductFilter) ([]models.Product, int64, error)
 	GetProductDetails(slug string) (models.Product, error)
 	CreateProduct(userID int64, request dto.CreateProductRequest, fileHeader *multipart.FileHeader) (dto.ProductResponse, error)
-	UpdateProduct(id int64, request dto.UpdateProductRequest) (models.Product, error)
+	UpdateProduct(id int64, request dto.UpdateProductRequest, fileHeader *multipart.FileHeader) (models.Product, error)
 	DeleteProduct(id int64) error
 }
 
@@ -30,8 +32,8 @@ func NewProductService(repo repository.ProductRepository, storage images.Storage
 	}
 }
 
-func (s *productService) GetProducts() ([]models.Product, error) {
-	return s.repo.FindAll()
+func (s *productService) GetProducts(filter dto.ProductFilter) ([]models.Product, int64, error) {
+	return s.repo.FindAll(filter)
 }
 
 func (s *productService) GetProductDetails(slug string) (models.Product, error) {
@@ -65,6 +67,8 @@ func (s *productService) CreateProduct(userID int64, request dto.CreateProductRe
 		Description: request.Description,
 		Price:       int(request.Price),
 		Stock:       request.Stock,
+		IsActive:    enum.ProductStatus(request.IsActive),
+		Category:    enum.ProductCategory(request.Category),
 	}
 
 	if err := s.repo.Create(&product); err != nil {
@@ -85,7 +89,7 @@ func (s *productService) CreateProduct(userID int64, request dto.CreateProductRe
 	}, nil
 }
 
-func (s *productService) UpdateProduct(id int64, request dto.UpdateProductRequest) (models.Product, error) {
+func (s *productService) UpdateProduct(id int64, request dto.UpdateProductRequest, fileHeader *multipart.FileHeader) (models.Product, error) {
 	if request.Stock < 0 {
 		return models.Product{}, errors.New("stock cannot be negative")
 	}
@@ -99,13 +103,27 @@ func (s *productService) UpdateProduct(id int64, request dto.UpdateProductReques
 	}
 
 	product.Title = request.Title
-	product.Thumbnail = request.Thumbnail
+	product.Slug = slug.Make(request.Title)
 	product.Description = request.Description
 	product.Price = int(request.Price)
 	product.Stock = request.Stock
 	product.IsActive = enum.ProductStatus(request.IsActive)
 	product.Category = enum.ProductCategory(request.Category)
 
+	if fileHeader != nil {
+		file, err := fileHeader.Open()
+		if err != nil {
+			return models.Product{}, err
+		}
+		defer file.Close()
+
+		thumbnailURL, _, err := s.storage.Upload(file, fileHeader.Filename)
+		if err != nil {
+			return models.Product{}, err
+		}
+
+		product.Thumbnail = thumbnailURL
+	}
 	if err := s.repo.Update(&product); err != nil {
 		return models.Product{}, err
 	}
@@ -118,5 +136,12 @@ func (s *productService) DeleteProduct(id int64) error {
 	if err != nil {
 		return err
 	}
+
+	if product.Thumbnail != "" {
+		if err := s.storage.Delete(product.Thumbnail); err != nil {
+			return err
+		}
+	}
+
 	return s.repo.Delete(&product)
 }
