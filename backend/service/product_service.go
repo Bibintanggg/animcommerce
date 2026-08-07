@@ -22,10 +22,10 @@ type ProductService interface {
 
 type productService struct {
 	repo    repository.ProductRepository
-	storage images.Storage
+	storage *images.Storage
 }
 
-func NewProductService(repo repository.ProductRepository, storage images.Storage) ProductService {
+func NewProductService(repo repository.ProductRepository, storage *images.Storage) ProductService {
 	return &productService{
 		repo:    repo,
 		storage: storage,
