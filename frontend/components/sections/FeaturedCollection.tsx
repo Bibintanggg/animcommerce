@@ -4,7 +4,7 @@ import ProductCard from "@/components/common/ProductCard";
 import { useEffect, useState } from "react";
 import { Product } from "@/types/product";
 import { useQuery } from "@tanstack/react-query";
-import { getProducts } from "@/services/product.service";
+import { getFeaturedProducts, getProducts } from "@/services/product.service";
 import { ErrorCard } from "../home-alert";
 import ErrorState from "../states/ErrorStates";
 import LoadingState from "../states/LoadingState";
@@ -12,8 +12,8 @@ import errorAnimation from "../../public/assets/lottie/notfound-error.json";
 
 export default function FeaturedCollection() {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["products"],
-    queryFn: getProducts,
+    queryKey: ["featured-products"],
+    queryFn: getFeaturedProducts,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,

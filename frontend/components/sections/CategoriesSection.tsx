@@ -1,48 +1,67 @@
 "use client";
 
-import { getCategoriesItem, getProducts } from "@/services/product.service";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useMemo } from "react";
 import SkeletonState from "../states/SkeletonStates";
 import ErrorState from "../states/ErrorStates";
 import errorAnimation from "../../public/assets/lottie/error-stress.json";
-// import { categories } from "@/lib/data";
+import { getAllProducts } from "@/services/product.service";
+import { ProductCategory } from "@/enums/product-category";
 
 export default function CategoriesSection() {
-  const { data: products, isLoading, error, refetch } = useQuery({
+  const {
+    data: products,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["products"],
-    queryFn: getProducts
-  })
+    queryFn: getAllProducts,
+  });
 
   const categories = useMemo(() => {
     if (!products) return [];
 
-    const map: Record<string, number> = {};
+    return Object.values(ProductCategory).map((category) => {
+      const firstProduct = products.find(
+        (product) => product.category === category,
+      );
 
-    for (const p of products) {
-      map[p.category] = (map[p.category] || 0) + 1;
-    }
-
-    return Object.entries(map).map(([key, count]) => ({
-      key,
-      count,
-    }));
+      return {
+        key: category,
+        count: products.filter((product) => product.category === category)
+          .length,
+        image: firstProduct?.thumbnail ?? "/assets/default.jpg",
+      };
+    });
   }, [products]);
-
   const getCategoryImage = (key: string) => {
     switch (key) {
       case "figure":
-        return "https://images.freepik.com/japan-anime-figure-aesthetic.jpg";
+        return "https://images.unsplash.com/photo-1606663889134-b1dedb5ed8b7?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YWN0aW9uJTIwZmlndXJlfGVufDB8fDB8fHww";
 
       case "accessory":
-        return "https://images.freepik.com/japanese-accessories-aesthetic.jpg";
+        return "https://tsuru.fr/116979-large_default/specchio-tascabile-giapponese-in-fiore-di-prugna-in-chirimen-kokoro-kagami-colore-tra-cui-scegliere.jpg";
 
       case "shirt":
-        return "/assets/shirt-japan.jpg";
+        return "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQd5NI7bSLkD0AZscZv74CHXUoCpJLBr7n7yYA3q2OV3m7sngBwu6hg-DJM&s=10";
 
       default:
         return "https://images.freepik.com/japan-aesthetic-default.jpg";
+    }
+  };
+
+  const getCategoryName = (key: string) => {
+    switch (key) {
+      case "figure":
+        return "Figure";
+      case "accessory":
+        return "Accessory";
+      case "shirt":
+        return "Shirt";
+      default:
+        return key;
     }
   };
 
@@ -51,15 +70,19 @@ export default function CategoriesSection() {
       <div>
         <SkeletonState title="Categories Sections" />
       </div>
-    )
+    );
   }
 
   if (error) {
     return (
       <div className="p-10">
-        <ErrorState onRetry={refetch} title="category" assets={errorAnimation} />
+        <ErrorState
+          onRetry={refetch}
+          title="category"
+          assets={errorAnimation}
+        />
       </div>
-    )
+    );
   }
 
   return (
@@ -81,9 +104,9 @@ export default function CategoriesSection() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
           {categories.map((cat) => (
             <motion.a key={cat.key}>
-              <img src={getCategoryImage(cat.key)} />
-              <h3>{cat.key}</h3>
-              <span>{cat.count} items</span>
+              <img className="w-full h-full object-cover flex gap-10 justify-center" src={getCategoryImage(cat.key)} />
+              <h3 className="font-semibold text-2xl">{getCategoryName(cat.key)}</h3>
+              <span className="text-xl font-semibold">{cat.count} items</span>
             </motion.a>
           ))}
         </div>

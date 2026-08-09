@@ -15,7 +15,7 @@ export interface Product {
     category: ProductCategory
 }
 
-export interface ProductsResponse {
+export interface getProductsResponse {
     data: Product[];
     total: number;
     page: number;
@@ -25,4 +25,9 @@ export interface ProductsResponse {
 
 export interface DeleteProductResponse {
     message: string
+}
+
+export interface CategoryItem {
+    category: ProductCategory;
+    count: number;
 }
