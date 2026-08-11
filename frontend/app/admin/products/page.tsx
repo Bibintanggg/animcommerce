@@ -673,12 +673,27 @@ export default function Products() {
                                         return (
                                             <div>
                                                 <span>
-                                                    {product_is_featured ? "Unggulan" : "Tidak"}
+                                                    {product.is_featured ? "Unggulan" : "Tidak"}
                                                 </span>
                                             </div>
                                         );
                                     },
-                                }
+                                },
+                                {
+                                    type: "custom",
+                                    header: "Sold",
+                                    render: (product) => <span>{product.sold}</span>,
+                                },
+                                {
+                                    type: "custom",
+                                    header: "Size",
+                                    render: (product) => <span>{product.size}</span>,
+                                },
+                                {
+                                    type: "custom",
+                                    header: "Discount",
+                                    render: (product) => <span>{product.discounts}</span>,
+                                },
                                 {
                                     type: "date",
                                     header: "Dibuat",
