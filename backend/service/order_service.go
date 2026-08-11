@@ -14,6 +14,7 @@ import (
 )
 
 type OrderService interface {
+	GetAllOrders(filter dto.OrderFilter) ([]models.OrderProduct, int64, error)
 	Checkout(userID int64, req dto.CheckoutRequest) error
 	GetMyOrders(userID int64) ([]models.OrderProduct, error)
 	GetOrderDetail(userID int64, orderID int64) (*models.OrderProduct, error)
@@ -46,6 +47,16 @@ func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, orderIte
 		addressRepo:    addressRepo,
 		invoiceService: invoiceService,
 	}
+}
+
+func (s *orderService) GetAllOrders(filter dto.OrderFilter) ([]models.OrderProduct, int64, error) {
+	orders, err := s.orderRepo.GetAllOrders(filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var total int64 = int64(len(orders))
+	return orders, total, nil
 }
 
 func (s *orderService) Checkout(userID int64, req dto.CheckoutRequest) error {

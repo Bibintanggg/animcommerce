@@ -3,6 +3,7 @@ package handler
 import (
 	dto "animcommerce/backend/dto/products"
 	"animcommerce/backend/service"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -158,5 +159,40 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success delete product",
+	})
+}
+
+func (h *ProductHandler) GetStockMovements(c *gin.Context) {
+	period := c.Query("period")
+	movements, err := h.service.GetStockMovements(period)
+
+	if err != nil {
+		log.Println("GET STOCK MOVEMENTS ERROR:", err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Success get stock movements",
+		"data":    movements,
+	})
+}
+
+func (h *ProductHandler) GetProductBySlug(c *gin.Context) {
+	idParam := c.Param("slug")
+	product, err := h.service.GetProductDetails(idParam)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed to get proudcts",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Success to get product",
+		"data":    product,
 	})
 }

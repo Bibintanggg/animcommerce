@@ -19,7 +19,9 @@ func NewProductRoute(api *gin.RouterGroup, productHandler *handler.ProductHandle
 }
 
 func (r *ProductRoute) Register() {
+	r.api.GET("/products", r.productHandler.GetProducts)
 	r.api.POST("/products", r.productHandler.CreateProduct)
 	r.api.PUT("/products/:id", r.productHandler.UpdateProduct)
 	r.api.DELETE("/products/:id", r.productHandler.DeleteProduct)
+	r.api.GET("/products/stock-movements", r.productHandler.GetStockMovements)
 }

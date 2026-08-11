@@ -3,7 +3,9 @@ package repository
 import (
 	dto "animcommerce/backend/dto/products"
 	"animcommerce/backend/models"
+	"animcommerce/backend/models/enum"
 	"errors"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -17,6 +19,8 @@ type ProductRepository interface {
 	Delete(product *models.Product) error
 	LoadUser(product *models.Product) error
 	ReduceStock(tx *gorm.DB, productID int64, qty int) error
+	CreateStockMovement(movement *models.StockMovement) error
+	GetStockMovements(startDate time.Time, endDate time.Time) ([]models.StockMovement, error)
 }
 
 type productRepository struct {
@@ -77,15 +81,56 @@ func (r *productRepository) LoadUser(product *models.Product) error {
 }
 
 func (r *productRepository) ReduceStock(tx *gorm.DB, productID int64, qty int) error {
-	result := tx.Model(&models.Product{}).Where("id = ? AND stock >= ?", productID, qty).Update("stock", gorm.Expr("stock - ?", qty))
+
+	var product models.Product
+
+	if err := tx.
+		Where("id = ?", productID).
+		First(&product).Error; err != nil {
+		return err
+	}
+
+	if product.Stock < qty {
+		return errors.New("stock not enough")
+	}
+
+	oldStock := product.Stock
+	newStock := oldStock - qty
+
+	result := tx.
+		Model(&models.Product{}).
+		Where("id = ? AND stock >= ?", productID, qty).
+		Update("stock", newStock)
 
 	if result.Error != nil {
 		return result.Error
 	}
 
 	if result.RowsAffected == 0 {
-		return errors.New("Stock not enough")
+		return errors.New("stock update failed")
+	}
+
+	movement := models.StockMovement{
+		ProductID:   productID,
+		Type:        enum.StockOut,
+		Quantity:    qty,
+		StockBefore: oldStock,
+		StockAfter:  newStock,
+	}
+
+	if err := tx.Create(&movement).Error; err != nil {
+		return err
 	}
 
 	return nil
+}
+func (r *productRepository) CreateStockMovement(movement *models.StockMovement) error {
+	return r.db.Create(movement).Error
+}
+
+func (r *productRepository) GetStockMovements(startDate time.Time, endDate time.Time) ([]models.StockMovement, error) {
+	var movements []models.StockMovement
+	err := r.db.Preload("Product").Where("created_at >= ? AND created_at <= ?", startDate, endDate).Order("created_at ASC").Find(&movements).Error
+
+	return movements, err
 }

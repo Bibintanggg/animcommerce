@@ -12,6 +12,7 @@ type User struct {
 	Password  string        `json:"-" gorm:"not null"`
 	Role      enum.UserRole `gorm:"default:customer" json:"role"`
 	Addresses []UserAddress `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"addresses,omitempty"`
+	Wishlists []Wishlist    `json:"wishlists" gorm:"foreignKey:UserID"`
 	CreatedAt time.Time     `json:"created_at"`
 	UpdatedAt time.Time     `json:"updated_at"`
 }

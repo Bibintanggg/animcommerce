@@ -19,6 +19,32 @@ func NewOrderHandler(service service.OrderService) *OrderHandler {
 	}
 }
 
+func (h *OrderHandler) GetAllOrders(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	search := c.Query("search")
+
+	filter := dto.OrderFilter{
+		Page:   page,
+		Limit:  limit,
+		Search: search,
+	}
+
+	orders, total, err := h.service.GetAllOrders(filter)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed get orders",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Success get orders",
+		"data":    orders,
+		"total":   total,
+	})
+}
 func (h *OrderHandler) Checkout(c *gin.Context) {
 	var req dto.CheckoutRequest
 

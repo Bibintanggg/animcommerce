@@ -22,9 +22,9 @@ func NewOrderRoute(
 }
 
 func (r *OrderRoute) Register() {
-	r.api.PATCH("/orders/:id/status", r.orderHandler.UpdateOrderStatus)
 
-	// r.api.GET("/orders", r.orderHandler.GetAllOrders)
+	r.api.PATCH("/orders/:id/status", r.orderHandler.UpdateOrderStatus)
+	r.api.GET("/orders", r.orderHandler.GetAllOrders)
 	r.api.GET("/orders/:id", r.orderHandler.GetOrderDetail)
 
 	// r.api.GET("/invoices/:id", r.orderHandler.GetInvoice)
