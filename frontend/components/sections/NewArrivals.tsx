@@ -43,6 +43,7 @@ export default function NewArrivals() {
       </div>
     )
   }
+  
   return (
     <section id="new-arrivals" className="py-20 lg:py-32 bg-[#F7F6F3]">
       <div className="max-w-[1440px] mx-auto">

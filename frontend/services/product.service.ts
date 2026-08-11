@@ -2,6 +2,7 @@ import api from "@/lib/api";
 import {
   DeleteProductResponse,
   Product,
+  StockMovementChart,
   getProductsResponse,
 } from "@/types/product";
 import { ProductCategory } from "@/enums/product-category";
@@ -51,7 +52,8 @@ export const getNewArrivals = async () => {
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     )
-    .slice(0, 8);
+    .slice(0, 8)
+    .filter((product) => product.is_active === ProductStatus.ProductPublished);
 };
 
 export const getCategoriesItem = async (category: ProductCategory) => {
@@ -60,7 +62,7 @@ export const getCategoriesItem = async (category: ProductCategory) => {
 };
 
 export const getProductDetails = async (slug: string) => {
-  const response = await api.get<SingleProductResponse>(`/products/${slug}`);
+  const response = await api.get<SingleProductResponse>(`/product-details/${slug}`);
   return response.data.data;
 };
 
@@ -119,10 +121,24 @@ export const getFeaturedProducts = async () => {
 };
 
 export const getAllProducts = async () => {
-    const response = await api.get<ProductResponse>("/products", {
-        params: {
-            limit: 100,
-        }
-    });
-    return response.data.data;
+  const response = await api.get<ProductResponse>("/products", {
+    params: {
+      limit: 100,
+    }
+  });
+  return response.data.data;
 }
+
+export const getHeroBanner = async () => {
+  const response = await api.get<ProductResponse>("/products")
+  return response.data.data
+    .sort((a, b) => new Date(b.is_active).getTime() - new Date(a.is_active).getTime())
+    .filter((product) => product.is_active === ProductStatus.ProductPublished)
+}
+
+
+// ADMIN
+export const getStockMovements = async (): Promise<StockMovementChart[]> => {
+  const response = await api.get<{message: string, data: StockMovementChart[]}>("/admin/products/stock-movements");
+  return response.data.data;
+};

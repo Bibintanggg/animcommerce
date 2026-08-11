@@ -7,7 +7,7 @@ import { ProductForm } from "@/components/forms/ProductForm";
 import SectionTitle from "@/components/SectionTitle";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/table/data-table";
-import { deleteProducts, getProducts } from "@/services/product.service";
+import { deleteProducts, getProducts, getStockMovements } from "@/services/product.service";
 import { Product } from "@/types/product";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PaginationState } from "@tanstack/react-table";
@@ -67,6 +67,14 @@ export default function Products() {
         pageIndex: 0,
         pageSize: 10,
     });
+
+    const { data: stockMovementData, isLoading: isStockMovementLoading, error: stockMovementError } = useQuery({
+        queryKey: ["stock-movements"],
+        queryFn: getStockMovements,
+        staleTime: 1000 * 60 * 5,
+    });
+
+    console.log("STOCK MOVEMENTS:", stockMovementData);
 
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -139,19 +147,14 @@ export default function Products() {
         };
     }, [productsData, data]);
 
-    // Chart data: pergerakan stok & nilai (dummy estimasi)
     const chartData = useMemo(() => {
-        const base = stats.totalStock || 100;
-        return [
-            { name: "Sen", stok: Math.round(base * 0.72), nilai: Math.round(base * 0.68) },
-            { name: "Sel", stok: Math.round(base * 0.85), nilai: Math.round(base * 0.79) },
-            { name: "Rab", stok: Math.round(base * 0.78), nilai: Math.round(base * 0.91) },
-            { name: "Kam", stok: Math.round(base * 0.94), nilai: Math.round(base * 0.86) },
-            { name: "Jum", stok: Math.round(base * 0.88), nilai: Math.round(base * 1.05) },
-            { name: "Sab", stok: Math.round(base * 1.12), nilai: Math.round(base * 0.97) },
-            { name: "Min", stok: Math.round(base * 1.05), nilai: Math.round(base * 1.18) },
-        ];
-    }, [stats.totalStock]);
+        if (!stockMovementData) return []
+        return stockMovementData.map((item) => ({
+            name: item.date,
+            stok: item.stock,
+            nilai: item.value
+        }))
+    }, [stockMovementData]);
 
     // Chart data: distribusi status
     const statusChartData = useMemo(() => {
@@ -532,10 +535,17 @@ export default function Products() {
                                         borderRadius: "10px",
                                         fontSize: "12px",
                                     }}
-                                    formatter={(value: number) => [
-                                        `Rp ${value.toLocaleString("id-ID")}`,
-                                        "Nilai",
-                                    ]}
+                                    formatter={(value) => {
+                                        const numericValue =
+                                            typeof value === "number"
+                                                ? value
+                                                : Number(value ?? 0);
+
+                                        return [
+                                            `Rp ${numericValue.toLocaleString("id-ID")}`,
+                                            "Nilai",
+                                        ];
+                                    }}
                                     cursor={{ fill: "rgba(139, 92, 246, 0.06)" }}
                                 />
                                 <Bar
@@ -656,6 +666,19 @@ export default function Products() {
                                         archived: "Archived",
                                     },
                                 },
+                                {
+                                    type: "custom",
+                                    header: "Unggulan",
+                                    render: (product) => {
+                                        return (
+                                            <div>
+                                                <span>
+                                                    {product_is_featured ? "Unggulan" : "Tidak"}
+                                                </span>
+                                            </div>
+                                        );
+                                    },
+                                }
                                 {
                                     type: "date",
                                     header: "Dibuat",
