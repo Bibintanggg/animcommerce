@@ -76,7 +76,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 		productRoute := customer.NewProductRoute(api, productHandler)
 		productRoute.Register()
 
-		reviewRoute := customer.NewReviewRoute(api, reviewHandler)
+		reviewRoute := customer.NewReviewRoute(auth, reviewHandler)
 		reviewRoute.Register()
 
 		auth.Use(middleware.AuthMiddleware())
@@ -87,7 +87,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 			orderRoute := customer.NewOrdersRoute(auth, orderHandler)
 			orderRoute.Register()
 
-			adminGroup := api.Group("/admin")	
+			adminGroup := api.Group("/admin")
 			adminGroup.Use(
 				middleware.AuthMiddleware(),
 				middleware.RoleMiddleware(
@@ -95,7 +95,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 					enum.SuperRole,
 				),
 			)
-			
+
 			admin.NewReviewRoute(adminGroup, reviewHandler).Register()
 			admin.NewProductRoute(adminGroup, productHandler).Register()
 			admin.NewOrderRoute(adminGroup, orderHandler).Register()
