@@ -1,23 +1,21 @@
 import axios from "axios";
-import { error } from "console";
-import { config } from "process";
 
 const api = axios.create({
-    baseURL: "http://localhost:8080/api/"
-})
-
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem("token");
-
-    if (
-        token &&
-        config.url !== "/login" &&
-        config.url !== "/register"
-    ) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    return config;
+  baseURL: "http://localhost:8080/api",
 });
 
-export default api
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+
+      console.log("AUTH HEADER:", config.headers.Authorization);
+    }
+  }
+
+  return config;
+});
+
+export default api;
