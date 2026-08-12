@@ -4,8 +4,8 @@ import "time"
 
 type Review struct {
 	ID        int64 `json:"id" gorm:"primaryKey;autoIncrement"`
-	ProductID int64 `json:"product_id"`
 	UserID    int64 `json:"user_id"`
+	ProductID int64 `json:"product_id"`
 
 	Rating  int    `json:"rating" gorm:"not null"`
 	Comment string `json:"comment" gorm:"type:text"`

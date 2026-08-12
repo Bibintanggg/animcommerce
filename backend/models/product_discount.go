@@ -5,6 +5,8 @@ import "time"
 type Discount struct {
 	ID int64 `json:"id" gorm:"primaryKey;autoIncrement"`
 
+	ProductID int64 `json:"product_id" gorm:"not null;index"`
+
 	Code  string `json:"code" gorm:"unique;not null"`
 	Type  string `json:"type" gorm:"type:varchar(20);not null"`
 	Value int    `json:"value" gorm:"not null"`

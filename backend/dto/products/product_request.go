@@ -8,4 +8,7 @@ type CreateProductRequest struct {
 	Stock       int     `form:"stock" binding:"required"`
 	IsActive    string  `form:"isActive"`
 	Category    string  `form:"category"`
+	IsFeatured  bool    `form:"is_featured"`
+	Discount    string  `form:"discount"`
+	Sizes       string  `form:"sizes"`
 }

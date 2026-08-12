@@ -6,6 +6,7 @@ import (
 	"animcommerce/backend/models/enum"
 	"animcommerce/backend/repository"
 	"animcommerce/backend/storage/images" // sesuaikan path package images kamu
+	"encoding/json"
 	"errors"
 	"mime/multipart"
 	"strings"
@@ -27,7 +28,7 @@ type productService struct {
 	repo    repository.ProductRepository
 	storage images.Storage
 }
-	
+
 func NewProductService(repo repository.ProductRepository, storage images.Storage) ProductService {
 	return &productService{
 		repo:    repo,
@@ -72,10 +73,65 @@ func (s *productService) CreateProduct(userID int64, request dto.CreateProductRe
 		Stock:       request.Stock,
 		IsActive:    enum.ProductStatus(request.IsActive),
 		Category:    enum.ProductCategory(request.Category),
+		IsFeatured:  request.IsFeatured,
 	}
 
 	if err := s.repo.Create(&product); err != nil {
 		return dto.ProductResponse{}, err
+	}
+
+	if request.Discount != "" {
+		var discountRequest dto.DiscountRequest
+
+		if err := json.Unmarshal(
+			[]byte(request.Discount),
+			&discountRequest,
+		); err != nil {
+			return dto.ProductResponse{}, err
+		}
+
+		discount := models.Discount{
+			ProductID:   product.ID,
+			Code:        discountRequest.Code,
+			Type:        discountRequest.Type,
+			Value:       int(discountRequest.Value),
+			MinPurchase: int(discountRequest.MinPurchase),
+			MaxDiscount: int(discountRequest.MaxDiscount),
+			UsageLimit:  discountRequest.UsageLimit,
+			IsActive:    discountRequest.IsActive,
+		}
+
+		if err := s.repo.CreateDiscount(&discount); err != nil {
+			return dto.ProductResponse{}, err
+		}
+	}
+
+	if request.Sizes != "" {
+		var sizes []string
+
+		if err := json.Unmarshal(
+			[]byte(request.Sizes),
+			&sizes,
+		); err != nil {
+			return dto.ProductResponse{}, err
+		}
+
+		for _, size := range sizes {
+			size = strings.TrimSpace(size)
+
+			if size == "" {
+				continue
+			}
+
+			productSize := models.ProductSize{
+				ProductID: product.ID,
+				Size:      size,
+			}
+
+			if err := s.repo.CreateProductSize(&productSize); err != nil {
+				return dto.ProductResponse{}, err
+			}
+		}
 	}
 
 	if err := s.repo.LoadUser(&product); err != nil {
@@ -115,6 +171,39 @@ func (s *productService) UpdateProduct(id int64, request dto.UpdateProductReques
 	product.Stock = newStock
 	product.IsActive = enum.ProductStatus(request.IsActive)
 	product.Category = enum.ProductCategory(request.Category)
+	product.IsFeatured = request.IsFeatured
+
+	if request.Sizes != "" {
+		var sizes []string
+
+		if err := json.Unmarshal(
+			[]byte(request.Sizes),
+			&sizes,
+		); err != nil {
+			return models.Product{}, err
+		}
+
+		if err := s.repo.DeleteProductSize(product.ID); err != nil {
+			return models.Product{}, err
+		}
+
+		for _, size := range sizes {
+			size = strings.TrimSpace(size)
+
+			if size == "" {
+				continue
+			}
+
+			productSize := models.ProductSize{
+				ProductID: product.ID,
+				Size:      size,
+			}
+
+			if err := s.repo.CreateProductSize(&productSize); err != nil {
+				return models.Product{}, err
+			}
+		}
+	}
 
 	if fileHeader != nil {
 		file, err := fileHeader.Open()
@@ -132,6 +221,35 @@ func (s *productService) UpdateProduct(id int64, request dto.UpdateProductReques
 	}
 	if err := s.repo.Update(&product); err != nil {
 		return models.Product{}, err
+	}
+
+	if request.Discount != "" {
+		var discountRequest dto.DiscountRequest
+		if err := json.Unmarshal(
+			[]byte(request.Discount),
+			&discountRequest,
+		); err != nil {
+			return models.Product{}, err
+		}
+
+		if err := s.repo.DeleteDiscount(product.ID); err != nil {
+			return models.Product{}, err
+		}
+
+		discount := models.Discount{
+			ProductID:   product.ID,
+			Code:        discountRequest.Code,
+			Type:        discountRequest.Type,
+			Value:       int(discountRequest.Value),
+			MinPurchase: int(discountRequest.MinPurchase),
+			MaxDiscount: int(discountRequest.MaxDiscount),
+			UsageLimit:  discountRequest.UsageLimit,
+			IsActive:    discountRequest.IsActive,
+		}
+
+		if err := s.repo.CreateDiscount(&discount); err != nil {
+			return models.Product{}, err
+		}
 	}
 
 	if oldStock != newStock {
@@ -169,6 +287,14 @@ func (s *productService) DeleteProduct(id int64) error {
 		if err := s.storage.Delete(product.Thumbnail); err != nil {
 			return err
 		}
+	}
+
+	if err := s.repo.DeleteDiscount(product.ID); err != nil {
+		return err
+	}
+
+	if err := s.repo.DeleteProductSize(product.ID); err != nil {
+		return err
 	}
 
 	return s.repo.Delete(&product)

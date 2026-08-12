@@ -21,6 +21,10 @@ type ProductRepository interface {
 	ReduceStock(tx *gorm.DB, productID int64, qty int) error
 	CreateStockMovement(movement *models.StockMovement) error
 	GetStockMovements(startDate time.Time, endDate time.Time) ([]models.StockMovement, error)
+	CreateDiscount(discount *models.Discount) error
+	DeleteDiscount(productID int64) error
+	CreateProductSize(size *models.ProductSize) error
+	DeleteProductSize(productID int64) error
 }
 
 type productRepository struct {
@@ -38,7 +42,7 @@ func (r *productRepository) FindAll(filter dto.ProductFilter) ([]models.Product,
 		products []models.Product
 		total    int64
 	)
-	query := r.db.Model(&models.Product{}).Preload("User")
+	query := r.db.Model(&models.Product{}).Preload("User").Preload("Discounts").Preload("Size")
 
 	if filter.Search != "" {
 		query = query.Where("title LIKE ?", "%"+filter.Search+"%")
@@ -54,7 +58,7 @@ func (r *productRepository) FindAll(filter dto.ProductFilter) ([]models.Product,
 
 func (r *productRepository) FindBySlug(slug string) (models.Product, error) {
 	var product models.Product
-	err := r.db.Preload("User").Where("slug = ?", slug).First(&product).Error
+	err := r.db.Preload("User").Preload("Discounts").Preload("Size").Where("slug = ?", slug).First(&product).Error
 	return product, err
 }
 
@@ -133,4 +137,20 @@ func (r *productRepository) GetStockMovements(startDate time.Time, endDate time.
 	err := r.db.Preload("Product").Where("created_at >= ? AND created_at <= ?", startDate, endDate).Order("created_at ASC").Find(&movements).Error
 
 	return movements, err
+}
+
+func (r *productRepository) CreateDiscount(discount *models.Discount) error {
+	return r.db.Create(discount).Error
+}
+
+func (r *productRepository) CreateProductSize(size *models.ProductSize) error {
+	return r.db.Create(size).Error
+}
+
+func (r *productRepository) DeleteProductSize(productID int64) error {
+	return r.db.Where("product_id = ?", productID).Delete(&models.ProductSize{}).Error
+}
+
+func (r *productRepository) DeleteDiscount(productID int64) error {
+	return r.db.Where("product_id = ?", productID).Delete(&models.Discount{}).Error
 }

@@ -22,11 +22,11 @@ type Product struct {
 	Sold     int                  `json:"sold" gorm:"default:0"`
 
 	Reviews []Review      `json:"reviews" gorm:"foreignKey:ProductID"`
-	Size    []ProductSize `json:"size" gorm:"not null"`
+	Size    []ProductSize `json:"size" gorm:"foreignKey:ProductID"`
 
 	Wishlists []Wishlist `json:"wishlists" gorm:"foreignKey:ProductID"`
 
-	Discounts []Discount `json:"discounts" gorm:"many2many:discount_products"`
+	Discounts []Discount `json:"discounts" gorm:"foreignKey:ProductID"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
