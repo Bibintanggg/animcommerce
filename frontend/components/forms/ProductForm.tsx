@@ -13,6 +13,9 @@ import { ImagePlus, X } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { createProduct, updateProduct } from "@/services/product.service";
 import { ProductStatus } from "@/enums/product-status";
+import { ProductSize } from "@/types/product-type";
+import { Discount, DiscountFormData } from "@/types/product-discount";
+import { Review } from "@/types/product-review";
 
 interface ProductFormProps {
     url: string
@@ -31,6 +34,18 @@ function generateSlug(title: string) {
 }
 
 export function ProductForm({ url, mode = "create", product, method }: ProductFormProps) {
+    const defaultDiscount: DiscountFormData = {
+        code: "",
+        type: "percentage",
+        value: 0,
+        min_purchase: 0,
+        max_discount: 0,
+        usage_limit: 0,
+        start_at: null,
+        end_at: null,
+        is_active: true,
+    };
+
     const [formData, setFormData] = useState<{
         title: string,
         thumbnail: string,
@@ -39,7 +54,10 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
         price: number,
         stock: number,
         is_active: ProductStatus,
-        category: ProductCategory
+        category: ProductCategory,
+        is_featured: boolean,
+        size: string[],
+        discount: DiscountFormData,
     }>({
         title: "",
         thumbnail: "",
@@ -48,7 +66,10 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
         price: 0,
         stock: 0,
         is_active: ProductStatus.ProductDraft,
-        category: ProductCategory.FigureCategry
+        category: ProductCategory.FigureCategry,
+        is_featured: false,
+        size: [],
+        discount: defaultDiscount,
     })
 
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -70,7 +91,10 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                 price: product.price,
                 stock: product.stock,
                 is_active: product.is_active,
-                category: product.category
+                category: product.category,
+                is_featured: product.is_featured,
+                size: product.size?.map((item) => item.size) ?? [],
+                discount: defaultDiscount,
             });
             setThumbnailPreview(product.thumbnail || null);
             setThumbnailFile(null);
@@ -85,18 +109,32 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                 price: 0,
                 stock: 0,
                 is_active: ProductStatus.ProductDraft,
-                category: ProductCategory.FigureCategry
+                category: ProductCategory.FigureCategry,
+                is_featured: false,
+                size: [],
+                discount: defaultDiscount
             });
             setThumbnailPreview(null);
             setThumbnailFile(null);
         }
-    }, [product, mode])
+    }, [product?.id, mode])
 
     const handleTitleChange = (value: string) => {
         setFormData((prev) => ({
             ...prev,
             title: value,
             slug: mode === "create" ? generateSlug(value) : prev.slug
+        }));
+    };
+
+    const handleCategoryChange = (value: ProductCategory) => {
+        setFormData((prev) => ({
+            ...prev,
+            category: value,
+            // Reset size setiap kali kategori diganti ke selain Shirt
+            // (mis. Figure atau Accessory), supaya tidak ada size "nyangkut"
+            // dari kategori sebelumnya.
+            size: value === ProductCategory.ShirtCategory ? prev.size : [],
         }));
     };
 
@@ -185,17 +223,7 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
         }
 
         try {
-            // const payload = new FormData();
-            // payload.append("title", formData.title);
-            // payload.append("slug", formData.slug);
-            // payload.append("description", formData.description);
-            // payload.append("price", String(formData.price));
-            // payload.append("stock", String(formData.stock));
-            // payload.append("is_active", String(formData.is_active));
-            // payload.append("category", formData.category)
-
             const body = new FormData();
-
 
             body.append("title", formData.title);
             body.append("slug", formData.slug);
@@ -204,7 +232,18 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
             body.append("stock", String(formData.stock));
             body.append("category", formData.category);
             body.append("is_active", String(formData.is_active));
+            body.append("is_featured", String(formData.is_featured));
+            body.append("sizes", JSON.stringify(formData.size));
 
+            if (
+                formData.discount.code.trim() !== "" &&
+                formData.discount.value > 0
+            ) {
+                body.append(
+                    "discount",
+                    JSON.stringify(formData.discount)
+                );
+            }
             if (thumbnailFile) {
                 body.append("thumbnail", thumbnailFile);
             }
@@ -231,7 +270,10 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                 price: 0,
                 stock: 0,
                 is_active: ProductStatus.ProductDraft,
-                category: ProductCategory.FigureCategry
+                category: ProductCategory.FigureCategry,
+                is_featured: false,
+                size: [],
+                discount: defaultDiscount,
             });
             setThumbnailFile(null);
             setThumbnailPreview(null);
@@ -273,10 +315,10 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                     id="description"
                     placeholder="Deskripsi produk"
                     value={formData.description}
-                    onChange={(e) => setFormData({
-                        ...formData,
+                    onChange={(e) => setFormData((prev) => ({
+                        ...prev,
                         description: e.target.value
-                    })}
+                    }))}
                     className="min-h-24 resize-y"
                     required
                 />
@@ -292,10 +334,10 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                         placeholder="Harga"
                         min={0}
                         value={formData.price}
-                        onChange={(e) => setFormData({
-                            ...formData,
+                        onChange={(e) => setFormData((prev) => ({
+                            ...prev,
                             price: Number(e.target.value)
-                        })}
+                        }))}
                         required
                     />
                 </div>
@@ -308,16 +350,16 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                         placeholder="Stok"
                         min={0}
                         value={formData.stock}
-                        onChange={(e) => setFormData({
-                            ...formData,
+                        onChange={(e) => setFormData((prev) => ({
+                            ...prev,
                             stock: Number(e.target.value)
-                        })}
+                        }))}
                         required
                     />
                 </div>
             </div>
 
-            <hr className="border-t-2 border-black/40 w-full" />
+            <hr className="border-t-2 border-black/30 w-full" />
 
             <div className="space-y-2">
                 <Label className="mb-5">Kategori & Status</Label>
@@ -327,12 +369,7 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                         <Label>Kategori</Label>
                         <Select
                             value={formData.category}
-                            onValueChange={(value) =>
-                                setFormData({
-                                    ...formData,
-                                    category: value as ProductCategory,
-                                })
-                            }
+                            onValueChange={(value) => handleCategoryChange(value as ProductCategory)}
                         >
                             <SelectTrigger className="w-full h-11">
                                 <SelectValue placeholder="Pilih kategori" />
@@ -346,15 +383,44 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                         </Select>
                     </div>
 
+                    {formData.category === ProductCategory.ShirtCategory && (
+                        <div className="space-y-2">
+                            <Label>Size</Label>
+
+                            <div className="flex flex-wrap gap-2">
+                                {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
+                                    <button
+                                        key={size}
+                                        type="button"
+                                        onClick={() => {
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                size: prev.size.includes(size)
+                                                    ? prev.size.filter((item) => item !== size)
+                                                    : [...prev.size, size],
+                                            }));
+                                        }}
+                                        className={`rounded-md border px-4 py-2 transition-colors ${formData.size.includes(size)
+                                                ? "border-primary bg-primary text-white"
+                                                : "border-border bg-background hover:bg-muted"
+                                            }`}
+                                    >
+                                        {size}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="space-y-2">
                         <Label>Status</Label>
                         <Select
                             value={formData.is_active}
                             onValueChange={(value) =>
-                                setFormData({
-                                    ...formData,
+                                setFormData((prev) => ({
+                                    ...prev,
                                     is_active: value as ProductStatus,
-                                })
+                                }))
                             }
                         >
                             <SelectTrigger className="w-full h-11">
@@ -368,8 +434,171 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                             </SelectContent>
                         </Select>
                     </div>
+
+                    <div className="space-y-2">
+                        <Label>Produk Unggulan</Label>
+
+                        <Select
+                            value={formData.is_featured ? "true" : "false"}
+                            onValueChange={(value) =>
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    is_featured: value === "true",
+                                }))
+                            }
+                        >
+                            <SelectTrigger className="w-full h-11">
+                                <SelectValue placeholder="Pilih status" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="true">
+                                    Ya
+                                </SelectItem>
+
+                                <SelectItem value="false">
+                                    Tidak
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
             </div>
+
+            <hr className="border-t-2 border-black/30 w-40 flex justify-center mx-auto" />
+
+            <div className="space-y-2">
+                <Label className="mb-5">Diskon Produk (Opsional)</Label>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Kode Diskon</Label>
+                        <Input
+                            value={formData.discount?.code}
+                            onChange={(e) =>
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    discount: {
+                                        ...prev.discount,
+                                        code: e.target.value,
+                                    },
+                                }))
+                            }
+                            placeholder="Contoh: NIHON10"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Tipe Diskon</Label>
+
+                        <Select
+                            value={formData.discount.type}
+                            onValueChange={(value) =>
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    discount: {
+                                        ...prev.discount,
+                                        type: value,
+                                    },
+                                }))
+                            }
+                        >
+                            <SelectTrigger className="w-full h-11">
+                                <SelectValue placeholder="Pilih tipe diskon" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="percentage">
+                                    Persentase
+                                </SelectItem>
+
+                                <SelectItem value="fixed">
+                                    Nominal
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Nilai Diskon */}
+                    <div className="space-y-2">
+                        <Label>Nilai Diskon</Label>
+
+                        <Input
+                            type="number"
+                            value={formData.discount.value}
+                            onChange={(e) =>
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    discount: {
+                                        ...prev.discount,
+                                        value: Number(e.target.value),
+                                    },
+                                }))
+                            }
+                            placeholder="Contoh: 10"
+                        />
+                    </div>
+
+                    {/* Minimal Pembelian */}
+                    <div className="space-y-2">
+                        <Label>Minimal Pembelian</Label>
+
+                        <Input
+                            type="number"
+                            value={formData.discount.min_purchase}
+                            onChange={(e) =>
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    discount: {
+                                        ...prev.discount,
+                                        min_purchase: Number(e.target.value),
+                                    },
+                                }))
+                            }
+                            placeholder="Contoh: 100000"
+                        />
+                    </div>
+
+                    {/* Maksimal Diskon */}
+                    <div className="space-y-2">
+                        <Label>Maksimal Diskon</Label>
+
+                        <Input
+                            type="number"
+                            value={formData.discount.max_discount}
+                            onChange={(e) =>
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    discount: {
+                                        ...prev.discount,
+                                        max_discount: Number(e.target.value),
+                                    },
+                                }))
+                            }
+                            placeholder="Contoh: 50000"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Batas Penggunaan</Label>
+
+                        <Input
+                            type="number"
+                            value={formData.discount.usage_limit}
+                            onChange={(e) =>
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    discount: {
+                                        ...prev.discount,
+                                        usage_limit: Number(e.target.value),
+                                    },
+                                }))
+                            }
+                            placeholder="Contoh: 100"
+                        />
+                    </div>
+                </div>
+            </div>
+
 
             {/* thumbnail uploader - paling bawah, besar, dengan animasi */}
             <div className="space-y-2">
@@ -436,6 +665,6 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
             <Button className="w-full" type="submit" disabled={isLoading || isUploading}>
                 {isUploading ? "Mengunggah..." : isLoading ? "Menyimpan..." : "Simpan"}
             </Button>
-        </form>
+        </form >
     );
 }

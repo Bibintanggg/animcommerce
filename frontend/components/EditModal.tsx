@@ -1,5 +1,12 @@
 import React from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "./ui/dialog"
 
 interface EditModal {
     open: boolean
@@ -10,7 +17,14 @@ interface EditModal {
     trigger?: React.ReactNode
 }
 
-export default function EditModal({ open, onOpenChange, title, description, children, trigger }: EditModal) {
+export default function EditModal({
+    open,
+    onOpenChange,
+    title,
+    description,
+    children,
+    trigger,
+}: EditModal) {
     return (
         <div>
             <Dialog open={open} onOpenChange={onOpenChange}>
@@ -18,13 +32,20 @@ export default function EditModal({ open, onOpenChange, title, description, chil
                     {trigger}
                 </DialogTrigger>
 
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-hidden">
                     <DialogHeader>
                         <DialogTitle>{title}</DialogTitle>
-                        <DialogDescription>{description}</DialogDescription>
+
+                        {description && (
+                            <DialogDescription>
+                                {description}
+                            </DialogDescription>
+                        )}
                     </DialogHeader>
 
-                    {children}
+                    <div className="max-h-[70vh] overflow-y-auto pr-2">
+                        {children}
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { getProductDetails } from "@/services/product.service";
+import { Discount } from "@/types/product-discount";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -15,7 +16,7 @@ export default function DetailProduct() {
         enabled: !!slug
     })
 
-    console.log(product)
+    // console.log(product)
 
     const reviews = [
         {
@@ -79,7 +80,65 @@ export default function DetailProduct() {
     const [selectedSize, setSelectedSize] = useState("42");
     const [qty, setQty] = useState(1);
 
-    const total = product ? product.price * qty : 0;
+    const [discountCode, setDiscountCode] = useState("");
+    const [appliedDiscount, setAppliedDiscount] = useState<Discount | null>(null);
+    const [discountError, setDiscountError] = useState("");
+
+
+    const subtotal = product ? product.price * qty : 0;
+
+    const discountAmount = appliedDiscount
+        ? appliedDiscount.type === "percentage"
+            ? Math.min(
+                subtotal * (appliedDiscount.value / 100),
+                appliedDiscount.max_discount || Infinity
+            )
+            : appliedDiscount.value
+        : 0;
+
+    const total = Math.max(0, subtotal - discountAmount);
+
+    const handleApplyDiscount = () => {
+        setDiscountError("");
+
+        if (!discountCode.trim()) {
+            setDiscountError("Masukkan kode discount");
+            return;
+        }
+
+        const discount = product?.discounts?.find(
+            (item) =>
+                item.code.toLowerCase() === discountCode.trim().toLowerCase()
+        );
+
+        if (!discount) {
+            setAppliedDiscount(null);
+            setDiscountError("Kode discount tidak tersedia");
+            return;
+        }
+
+        if (!discount.is_active) {
+            setAppliedDiscount(null);
+            setDiscountError("Discount sudah tidak aktif");
+            return;
+        }
+
+        if (discount.usage_limit > 0 && discount.used_count >= discount.usage_limit) {
+            setAppliedDiscount(null);
+            setDiscountError("Discount sudah mencapai batas penggunaan");
+            return;
+        }
+
+        if (subtotal < discount.min_purchase) {
+            setAppliedDiscount(null);
+            setDiscountError(
+                `Minimal pembelian ${format(discount.min_purchase)}`
+            );
+            return;
+        }
+
+        setAppliedDiscount(discount);
+    };
 
     const format = (n?: number) =>
         new Intl.NumberFormat("id-ID", {
@@ -98,7 +157,6 @@ export default function DetailProduct() {
                     <span className="text-gray-800 font-medium">{product?.title}</span>
                 </div>
 
-                {/* ================= PRODUCT DETAIL ================= */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
                     {/* LEFT */}
                     <div className="lg:col-span-7 space-y-6">
@@ -181,23 +239,29 @@ export default function DetailProduct() {
                             </div> */}
 
                             {/* Size */}
-                            {/* <div>
-                                <p className="text-sm font-medium text-gray-900 mb-3">Ukuran</p>
-                                <div className="grid grid-cols-6 gap-2">
-                                    {product.sizes.map((s) => (
-                                        <button
-                                            key={s}
-                                            onClick={() => setSelectedSize(s)}
-                                            className={`py-3 rounded-xl text-sm font-medium transition-all duration-200 border ${selectedSize === s
-                                                ? "bg-black text-white border-black"
-                                                : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
-                                                }`}
-                                        >
-                                            {s}
-                                        </button>
-                                    ))}
+                            {product?.category === "shirt" ? (
+                                <div>
+                                    <p className="text-sm font-medium text-gray-900 mb-3">
+                                        Ukuran
+                                    </p>
+
+                                    <div className="grid grid-cols-6 gap-2">
+                                        {(product.size ?? []).map((s) => (
+                                            <button
+                                                key={s.id}
+                                                type="button"
+                                                onClick={() => setSelectedSize(s.size)}
+                                                className={`py-3 rounded-xl text-sm font-medium transition-all duration-200 border ${selectedSize === s.size
+                                                    ? "bg-black text-white border-black"
+                                                    : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
+                                                    }`}
+                                            >
+                                                {s.size}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div> */}
+                            ) : null}
 
                             {/* Qty */}
                             <div>
@@ -219,19 +283,111 @@ export default function DetailProduct() {
                                 </div>
                             </div>
 
-                            {/* Total Box */}
                             <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className="text-gray-500 text-sm">Subtotal</span>
-                                    <span className="font-medium">{format(total)}</span>
-                                </div>
-                                <div className="flex justify-between items-center mb-5">
-                                    <span className="text-gray-500 text-sm">Pengiriman</span>
-                                    <span className="text-green-600 text-sm font-medium">Gratis</span>
+
+                                {/* Discount */}
+                                <div className="mb-6">
+                                    <p className="text-sm font-medium text-gray-900 mb-3">
+                                        Kode Discount
+                                    </p>
+
+                                    {appliedDiscount ? (
+                                        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-green-50 border border-green-100">
+                                            <div>
+                                                <p className="text-sm font-semibold text-green-700">
+                                                    {appliedDiscount.code}
+                                                </p>
+
+                                                <p className="text-xs text-green-600">
+                                                    Discount berhasil diterapkan
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setAppliedDiscount(null);
+                                                    setDiscountCode("");
+                                                    setDiscountError("");
+                                                }}
+                                                className="text-sm font-medium text-red-500 hover:text-red-600"
+                                            >
+                                                Hapus
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={discountCode}
+                                                    onChange={(e) => {
+                                                        setDiscountCode(e.target.value);
+                                                        setDiscountError("");
+                                                    }}
+                                                    placeholder="Masukkan kode"
+                                                    className="flex-1 h-11 px-4 rounded-xl border border-gray-200 outline-none focus:border-black transition"
+                                                />
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleApplyDiscount}
+                                                    className="px-5 h-11 rounded-xl bg-black text-white text-sm font-medium hover:bg-gray-800 transition"
+                                                >
+                                                    Terapkan
+                                                </button>
+                                            </div>
+
+                                            {discountError && (
+                                                <p className="text-xs text-red-500 mt-2">
+                                                    {discountError}
+                                                </p>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
 
+                                {/* Subtotal */}
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-gray-500 text-sm">
+                                        Subtotal
+                                    </span>
+
+                                    <span className="font-medium">
+                                        {format(subtotal)}
+                                    </span>
+                                </div>
+
+                                {/* Discount amount */}
+                                {appliedDiscount && (
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-green-600 text-sm">
+                                            Discount
+                                        </span>
+
+                                        <span className="font-medium text-green-600">
+                                            - {format(discountAmount)}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* Shipping */}
+                                <div className="flex justify-between items-center mb-5">
+                                    <span className="text-gray-500 text-sm">
+                                        Pengiriman
+                                    </span>
+
+                                    <span className="text-green-600 text-sm font-medium">
+                                        Gratis
+                                    </span>
+                                </div>
+
+                                {/* Total */}
                                 <div className="flex justify-between items-end border-t border-gray-100 pt-4">
-                                    <span className="font-semibold text-gray-900">Total</span>
+                                    <span className="font-semibold text-gray-900">
+                                        Total
+                                    </span>
+
                                     <span className="text-2xl font-semibold tracking-tight">
                                         {format(total)}
                                     </span>
@@ -241,6 +397,7 @@ export default function DetailProduct() {
                                     <button className="w-full h-14 bg-black text-white font-medium rounded-2xl hover:bg-gray-800 transition active:scale-[0.98]">
                                         Beli Sekarang
                                     </button>
+
                                     <button className="w-full h-14 bg-white border border-gray-200 text-gray-900 font-medium rounded-2xl hover:bg-gray-50 transition">
                                         Tambah ke Keranjang
                                     </button>
@@ -250,6 +407,7 @@ export default function DetailProduct() {
                                     Pembayaran aman • Garansi 30 hari
                                 </p>
                             </div>
+
                         </div>
                     </div>
                 </div>

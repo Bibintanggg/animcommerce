@@ -74,7 +74,7 @@ export default function Products() {
         staleTime: 1000 * 60 * 5,
     });
 
-    console.log("STOCK MOVEMENTS:", stockMovementData);
+    // console.log("STOCK MOVEMENTS:", stockMovementData);
 
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -565,18 +565,16 @@ export default function Products() {
                 {/* LEFT: Table + Modals */}
                 <div className="space-y-4 min-w-0">
                     <div className="flex items-start justify-between gap-4">
-                        <EditModal
-                            open={openEditModal}
-                            onOpenChange={setOpenEditModal}
-                            title="Edit Produk"
-                            description="Perbarui informasi produk"
-                        >
-                            <ProductForm
-                                mode="edit"
-                                product={selectedProduct}
-                                url={`http://localhost:8080/api/admin/products/${selectedProduct?.id}`}
-                                method="PUT"
-                            />
+                        <EditModal open={openEditModal} onOpenChange={setOpenEditModal} title="Edit Produk" description="Perbarui informasi produk">
+                            {openEditModal && selectedProduct && (
+                                <ProductForm
+                                    key={selectedProduct.id}
+                                    mode="edit"
+                                    product={selectedProduct}
+                                    url={`http://localhost:8080/api/admin/products/${selectedProduct.id}`}
+                                    method="PUT"
+                                />
+                            )}
                         </EditModal>
                     </div>
 
@@ -687,12 +685,33 @@ export default function Products() {
                                 {
                                     type: "custom",
                                     header: "Size",
-                                    render: (product) => <span>{product.size}</span>,
+                                    render: (product) => <span>{product.size?.map((item) => item.size).join(", ") || "-"}</span>,
                                 },
                                 {
                                     type: "custom",
                                     header: "Discount",
-                                    render: (product) => <span>{product.discounts}</span>,
+                                    render: (product) => (
+                                        <div>
+                                            {product.discounts?.map((discount) => (
+                                                <div key={discount.id}>
+                                                    <span className="font-medium">
+                                                        {discount.code}
+                                                    </span>
+
+                                                    <span className="ml-2 text-sm text-muted-foreground">
+                                                        {discount.type === "percentage"
+                                                            ? `${discount.value}%`
+                                                            : `Rp ${discount.value.toLocaleString("id-ID")}`}
+                                                    </span>
+                                                </div>
+                                            )) || "-"}
+                                        </div>
+                                    ),
+                                },
+                                {
+                                    type: "custom",
+                                    header: "Review",
+                                    render: (review) => <span>{review.reviews?.map((rev) => rev.rating) || "-"}</span>,
                                 },
                                 {
                                     type: "date",
@@ -721,11 +740,13 @@ export default function Products() {
                         />
                     </div>
 
-                    {isFetching && !isLoading && (
-                        <span className="text-xs text-muted-foreground animate-pulse">
-                            Memperbarui data...
-                        </span>
-                    )}
+                    {
+                        isFetching && !isLoading && (
+                            <span className="text-xs text-muted-foreground animate-pulse">
+                                Memperbarui data...
+                            </span>
+                        )
+                    }
                 </div>
 
                 {/* ===== RIGHT SIDEBAR ===== */}

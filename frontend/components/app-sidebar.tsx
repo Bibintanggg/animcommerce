@@ -34,6 +34,7 @@ import { UserRole } from "@/types/user";
 import { useQuery } from "@tanstack/react-query";
 import { login } from "@/services/auth.service";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type MenuItem = {
     title: string;
@@ -43,7 +44,15 @@ type MenuItem = {
 };
 
 export function AppSidebar() {
-    const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null
+    const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+        const storedUser = localStorage.getItem("user");
+
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+    }, []);
 
     const router = useRouter()
 

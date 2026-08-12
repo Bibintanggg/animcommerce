@@ -35,6 +35,7 @@ export const getProducts = async (
   });
 
   const total = response.data.total;
+  // console.log("PRODUCTS:", response.data.data);
 
   return {
     data: response.data.data,
@@ -116,7 +117,7 @@ export const deleteProducts = async (userId: number) => {
 export const getFeaturedProducts = async () => {
   const response = await api.get<ProductResponse>("/products");
   return response.data.data
-    .filter((product) => product.is_active === ProductStatus.ProductPublished)
+    .filter((product) => product.is_active === ProductStatus.ProductPublished && product.is_featured == true )
     .slice(0, 7);
 };
 
@@ -139,6 +140,6 @@ export const getHeroBanner = async () => {
 
 // ADMIN
 export const getStockMovements = async (): Promise<StockMovementChart[]> => {
-  const response = await api.get<{message: string, data: StockMovementChart[]}>("/admin/products/stock-movements");
+  const response = await api.get<{ message: string, data: StockMovementChart[] }>("/admin/products/stock-movements");
   return response.data.data;
 };
