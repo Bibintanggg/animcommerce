@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { LoginRequest, LoginResponse } from "@/types/auth";
+import { User } from "@/types/user";
 import axios from "axios";
 
 export const login = async(payload: LoginRequest) => {
@@ -10,7 +11,7 @@ export const login = async(payload: LoginRequest) => {
     return response.data
 }
 
-export async function getMe() {
-    const token = localStorage.getItem("token")
-
+export async function getMe(): Promise<User> {
+  const response = await api.get<{ data: User }>('/me')
+  return response.data.data
 }

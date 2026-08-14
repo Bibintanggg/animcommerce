@@ -7,11 +7,24 @@ import { ShoppingBag, Search, Menu, X, Heart } from "lucide-react";
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isLogin, setIsLogin] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+
+      setIsLogin(true);
+      setUserRole(user.role);
+    }
   }, []);
 
   const navLinks = [
@@ -20,7 +33,22 @@ export default function Navbar() {
     { href: "#new-arrivals", label: "New Arrivals" },
     { href: "#best-sellers", label: "Best Sellers" },
     { href: "#story", label: "Our Story" },
-    { href: "/login", label: "Login" },
+    ...(userRole === "admin" || userRole === "superadmin"
+      ? [
+        {
+          href:
+            userRole === "superadmin"
+              ? "/superadmin/dashboard"
+              : "/admin/dashboard",
+          label: "Dashboard",
+        },
+      ]
+      : []),
+
+    {
+      href: "#",
+      label: isLogin ? "Logout" : "Login",
+    },
   ];
 
   return (
@@ -29,11 +57,10 @@ export default function Navbar() {
         initial={{ y: -80 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled
-            ? "bg-white/95 backdrop-blur-md border-b border-[#E5E3DF]"
-            : "bg-transparent"
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
+          ? "bg-white/95 backdrop-blur-md border-b border-[#E5E3DF]"
+          : "bg-transparent"
+          }`}
       >
         <div className="max-w-[1440px] mx-auto px-6 lg:px-12">
           <div className="flex items-center justify-between h-16 lg:h-20">
@@ -83,7 +110,9 @@ export default function Navbar() {
                 aria-label="Cart"
                 className="relative p-2 text-[#1A1A1A] hover:text-[#BC002D] transition-colors duration-200"
               >
-                <ShoppingBag size={18} strokeWidth={1.5} />
+                <a href="/cart">
+                  <ShoppingBag size={18} strokeWidth={1.5} />
+                </a>
                 <span className="absolute top-1 right-1 w-2 h-2 bg-[#BC002D] rounded-full" />
               </button>
               <button

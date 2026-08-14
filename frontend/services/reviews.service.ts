@@ -33,6 +33,11 @@ export const getReview = async (
     return response.data.data;
 };
 
+export const updateReview = async (reviewID: number, data: CreateReviewRequest): Promise<Review> => {
+    const response = await api.put<{data: Review}>(`/reviews/${reviewID}`, data)
+    return response.data.data
+}
+
 
 
 export const getReviews = async (

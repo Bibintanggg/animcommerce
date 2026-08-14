@@ -1,16 +1,25 @@
 "use client";
 
+import ErrorModal from "@/components/ErrorModal";
+import SuccessModal from "@/components/SuccessModal";
+import { getMe } from "@/services/auth.service";
 import { getProductDetails } from "@/services/product.service";
-import { createReview, getProductReviews } from "@/services/reviews.service";
+import {
+  createReview,
+  getProductReviews,
+  updateReview,
+} from "@/services/reviews.service";
 import { Discount } from "@/types/product-discount";
+import { Review } from "@/types/product-review";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function DetailProduct() {
   const params = useParams();
-
   const slug = params.slug as string;
+
   const {
     data: product,
     isLoading,
@@ -23,17 +32,11 @@ export default function DetailProduct() {
 
   const queryClient = useQueryClient();
 
-  const {
-    data: reviews = [],
-    isLoading: isLoadingReviews,
-    error: reviewsError,
-  } = useQuery({
+  const { data: reviews = [], isLoading: isLoadingReviews, error: reviewsError } = useQuery<Review[]>({
     queryKey: ["get-product-reviews", product?.id],
     queryFn: () => getProductReviews(product?.id as number),
     enabled: !!product?.id,
   });
-
-  // console.log(product)
 
   const recommended = [
     {
@@ -75,13 +78,54 @@ export default function DetailProduct() {
   const [qty, setQty] = useState(1);
 
   const [discountCode, setDiscountCode] = useState("");
-  const [appliedDiscount, setAppliedDiscount] = useState<Discount | null>(null);
+  const [appliedDiscount, setAppliedDiscount] = useState<Discount | null>(
+    null
+  );
   const [discountError, setDiscountError] = useState("");
 
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [errorMessage, setErrorMessage] = useState(
+    "Gagal mengirim ulasan. Silakan coba lagi."
+  );
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
+  const [successModal, setSuccessModal] = useState(false);
+  const [failedModal, setFailedModal] = useState(false);
+
+  const { data: currentUser } = useQuery({
+    queryKey: ["me"],
+    queryFn: getMe,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const myReview = reviews?.find((r) => r.user?.id === currentUser?.id);
+
+  const sortedReviews = [...reviews].sort((a, b) => {
+    if (a.user?.id === currentUser?.id) return -1;
+    if (b.user?.id === currentUser?.id) return 1;
+    return (
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  });
+
+  const handleStartEdit = (review: (typeof reviews)[number]) => {
+    setEditingReviewId(review.id);
+    setReviewRating(review.rating);
+    setReviewComment(review.comment);
+    setReviewError("");
+    document
+      .getElementById("review-form")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingReviewId(null);
+    setReviewRating(5);
+    setReviewComment("");
+    setReviewError("");
+  };
 
   const handleSubmitReview = async () => {
     if (!product?.id) return;
@@ -100,20 +144,57 @@ export default function DetailProduct() {
       setIsSubmittingReview(true);
       setReviewError("");
 
-      await createReview(product.id, {
-        rating: reviewRating,
-        comment: reviewComment.trim(),
-      });
+      if (editingReviewId) {
+        // ==== MODE EDIT ====
+        await updateReview(editingReviewId, {
+          rating: reviewRating,
+          comment: reviewComment.trim(),
+        });
+      } else {
+        // ==== MODE CREATE ====
+        await createReview(product.id, {
+          rating: reviewRating,
+          comment: reviewComment.trim(),
+        });
+      }
 
       setReviewRating(5);
       setReviewComment("");
+      setEditingReviewId(null);
+      setSuccessModal(true);
 
       await queryClient.invalidateQueries({
-        queryKey: ["product-reviews", product.id],
+        queryKey: ["get-product-reviews", product.id],
       });
     } catch (error) {
+      setFailedModal(true);
+      let message = "Gagal mengirim ulasan. Silakan coba lagi.";
       console.error(error);
-      setReviewError("Gagal mengirim ulasan");
+
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+
+        if (status === 401) {
+          message = "Silakan login terlebih dahulu untuk memberikan ulasan.";
+        } else if (status === 403) {
+          message = "Kamu tidak memiliki izin untuk memberikan ulasan.";
+        } else if (status === 422) {
+          message =
+            error.response?.data?.message ||
+            "Data ulasan yang kamu masukkan tidak valid.";
+        } else if (status === 500) {
+          message = "Terjadi kesalahan pada server. Silakan coba lagi.";
+        } else {
+          message =
+            error.response?.data?.message ||
+            "Gagal mengirim ulasan. Silakan coba lagi.";
+        }
+      } else {
+        message = "Terjadi kesalahan. Silakan coba lagi.";
+      }
+
+      setErrorMessage(message);
+      setReviewError(message);
     } finally {
       setIsSubmittingReview(false);
     }
@@ -124,9 +205,9 @@ export default function DetailProduct() {
   const discountAmount = appliedDiscount
     ? appliedDiscount.type === "percentage"
       ? Math.min(
-          subtotal * (appliedDiscount.value / 100),
-          appliedDiscount.max_discount || Infinity,
-        )
+        subtotal * (appliedDiscount.value / 100),
+        appliedDiscount.max_discount || Infinity
+      )
       : appliedDiscount.value
     : 0;
 
@@ -141,7 +222,7 @@ export default function DetailProduct() {
     }
 
     const discount = product?.discounts?.find(
-      (item) => item.code.toLowerCase() === discountCode.trim().toLowerCase(),
+      (item) => item.code.toLowerCase() === discountCode.trim().toLowerCase()
     );
 
     if (!discount) {
@@ -202,21 +283,6 @@ export default function DetailProduct() {
               />
             </div>
 
-            {/* <div className="flex gap-3">
-                            {product.images.map((img, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => setSelectedImage(i)}
-                                    className={`w-20 h-20 rounded-2xl overflow-hidden transition-all duration-200 ${selectedImage === i
-                                        ? "ring-2 ring-black ring-offset-2"
-                                        : "opacity-60 hover:opacity-100"
-                                        }`}
-                                >
-                                    <img src={img} alt="" className="w-full h-full object-cover" />
-                                </button>
-                            ))}
-                        </div> */}
-
             <div className="pt-2">
               <h2 className="text-lg font-semibold text-gray-900 mb-3">
                 Deskripsi
@@ -231,7 +297,6 @@ export default function DetailProduct() {
           <div className="lg:col-span-5">
             <div className="lg:sticky lg:top-8 space-y-7">
               <div>
-                {/* <p className="text-sm font-medium text-gray-500 mb-1">{product.brand}</p> */}
                 <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
                   {product?.title}
                 </h1>
@@ -240,41 +305,9 @@ export default function DetailProduct() {
                   <span className="text-2xl font-semibold text-gray-900">
                     {format(product?.price)}
                   </span>
-                  {/* <span className="text-base text-gray-400 line-through">
-                                        {format(product.originalPrice)}
-                                    </span> */}
                 </div>
-
-                {/* <div className="flex items-center gap-2 mt-3 text-sm">
-                                    <span className="text-yellow-500">★</span>
-                                    <span className="font-medium text-gray-900">{product.rating}</span>
-                                    <span className="text-gray-400">
-                                        ({product.reviewsCount.toLocaleString()} ulasan)
-                                    </span>
-                                </div> */}
               </div>
 
-              {/* Color */}
-              {/* <div>
-                                <p className="text-sm font-medium text-gray-900 mb-3">
-                                    Warna — <span className="text-gray-500 font-normal">{selectedColor.name}</span>
-                                </p>
-                                <div className="flex gap-3">
-                                    {product.colors.map((c) => (
-                                        <button
-                                            key={c.name}
-                                            onClick={() => setSelectedColor(c)}
-                                            className={`w-10 h-10 rounded-full border transition-all duration-200 ${selectedColor.name === c.name
-                                                ? "ring-2 ring-black ring-offset-2 scale-110"
-                                                : "hover:scale-105"
-                                                }`}
-                                            style={{ backgroundColor: c.hex }}
-                                        />
-                                    ))}
-                                </div>
-                            </div> */}
-
-              {/* Size */}
               {product?.category === "shirt" ? (
                 <div>
                   <p className="text-sm font-medium text-gray-900 mb-3">
@@ -287,11 +320,10 @@ export default function DetailProduct() {
                         key={s.id}
                         type="button"
                         onClick={() => setSelectedSize(s.size)}
-                        className={`py-3 rounded-xl text-sm font-medium transition-all duration-200 border ${
-                          selectedSize === s.size
-                            ? "bg-black text-white border-black"
-                            : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
-                        }`}
+                        className={`py-3 rounded-xl text-sm font-medium transition-all duration-200 border ${selectedSize === s.size
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
+                          }`}
                       >
                         {s.size}
                       </button>
@@ -300,9 +332,10 @@ export default function DetailProduct() {
                 </div>
               ) : null}
 
-              {/* Qty */}
               <div>
-                <p className="text-sm font-medium text-gray-900 mb-3">Jumlah</p>
+                <p className="text-sm font-medium text-gray-900 mb-3">
+                  Jumlah
+                </p>
                 <div className="inline-flex items-center bg-white border border-gray-200 rounded-2xl">
                   <button
                     onClick={() => setQty(Math.max(1, qty - 1))}
@@ -321,7 +354,6 @@ export default function DetailProduct() {
               </div>
 
               <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                {/* Discount */}
                 <div className="mb-6">
                   <p className="text-sm font-medium text-gray-900 mb-3">
                     Kode Discount
@@ -333,12 +365,10 @@ export default function DetailProduct() {
                         <p className="text-sm font-semibold text-green-700">
                           {appliedDiscount.code}
                         </p>
-
                         <p className="text-xs text-green-600">
                           Discount berhasil diterapkan
                         </p>
                       </div>
-
                       <button
                         type="button"
                         onClick={() => {
@@ -364,7 +394,6 @@ export default function DetailProduct() {
                           placeholder="Masukkan kode"
                           className="flex-1 h-11 px-4 rounded-xl border border-gray-200 outline-none focus:border-black transition"
                         />
-
                         <button
                           type="button"
                           onClick={handleApplyDiscount}
@@ -373,7 +402,6 @@ export default function DetailProduct() {
                           Terapkan
                         </button>
                       </div>
-
                       {discountError && (
                         <p className="text-xs text-red-500 mt-2">
                           {discountError}
@@ -383,37 +411,29 @@ export default function DetailProduct() {
                   )}
                 </div>
 
-                {/* Subtotal */}
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-500 text-sm">Subtotal</span>
-
                   <span className="font-medium">{format(subtotal)}</span>
                 </div>
 
-                {/* Discount amount */}
                 {appliedDiscount && (
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-green-600 text-sm">Discount</span>
-
                     <span className="font-medium text-green-600">
                       - {format(discountAmount)}
                     </span>
                   </div>
                 )}
 
-                {/* Shipping */}
                 <div className="flex justify-between items-center mb-5">
                   <span className="text-gray-500 text-sm">Pengiriman</span>
-
                   <span className="text-green-600 text-sm font-medium">
                     Gratis
                   </span>
                 </div>
 
-                {/* Total */}
                 <div className="flex justify-between items-end border-t border-gray-100 pt-4">
                   <span className="font-semibold text-gray-900">Total</span>
-
                   <span className="text-2xl font-semibold tracking-tight">
                     {format(total)}
                   </span>
@@ -423,7 +443,6 @@ export default function DetailProduct() {
                   <button className="w-full h-14 bg-black text-white font-medium rounded-2xl hover:bg-gray-800 transition active:scale-[0.98]">
                     Beli Sekarang
                   </button>
-
                   <button className="w-full h-14 bg-white border border-gray-200 text-gray-900 font-medium rounded-2xl hover:bg-gray-50 transition">
                     Tambah ke Keranjang
                   </button>
@@ -438,49 +457,105 @@ export default function DetailProduct() {
         </div>
 
         {/* ================= ULASAN & REVIEW ================= */}
-        <section className="mt-20">
-          <section className="mt-20">
-            <div className="mb-8">
-              <h2 className="text-2xl font-semibold text-gray-900">
-                Ulasan Pembeli
-              </h2>
+        <section className="mt-24">
+          {/* Header */}
+          <div className="mb-10">
+            <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
+              Ulasan Pembeli
+            </h2>
+            <p className="text-sm text-gray-500 mt-1.5">
+              {reviews.length} orang sudah memberikan penilaian
+            </p>
+          </div>
 
-              <p className="text-gray-500 mt-1">
-                {reviews.length} ulasan untuk produk ini
-              </p>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+            {/* ========== LEFT ========== */}
+            <div className="lg:col-span-4 space-y-5">
+              {/* Rating Summary - lebih minimal */}
+              <div className="bg-white rounded-[28px] border border-gray-100 p-6">
+                <div className="flex items-center gap-5">
+                  <div className="text-center min-w-[72px]">
+                    <p className="text-4xl font-semibold tracking-tight text-gray-900">
+                      {reviews.length > 0
+                        ? (reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1)
+                        : "—"}
+                    </p>
+                    <div className="flex justify-center text-yellow-400 text-sm mt-1">
+                      {"★".repeat(
+                        Math.round(
+                          reviews.length > 0
+                            ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length
+                            : 0
+                        )
+                      )}
+                    </div>
+                  </div>
 
-            {/* FORM REVIEW */}
-            <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm mb-8">
-              <h3 className="font-semibold text-gray-900 mb-5">Tulis Ulasan</h3>
+                  <div className="flex-1 space-y-2">
+                    {[5, 4, 3, 2, 1].map((star) => {
+                      const count = reviews.filter((r) => r.rating === star).length;
+                      const percent = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
 
-              {/* Rating */}
-              <div className="mb-5">
-                <p className="text-sm font-medium text-gray-900 mb-3">Rating</p>
+                      return (
+                        <div key={star} className="flex items-center gap-2.5">
+                          <span className="text-xs text-gray-400 w-3">{star}</span>
+                          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-yellow-400 rounded-full transition-all duration-700"
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
 
-                <div className="flex gap-1">
+              {/* Form */}
+              <div
+                id="review-form"
+                className="bg-white rounded-[28px] border border-gray-100 p-6"
+              >
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      {editingReviewId ? "Edit Ulasan" : "Tulis Ulasan"}
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {editingReviewId
+                        ? "Perbarui penilaianmu"
+                        : "Bagikan pengalamanmu"}
+                    </p>
+                  </div>
+
+                  {editingReviewId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="text-xs text-gray-400 hover:text-gray-600 transition"
+                    >
+                      Batal
+                    </button>
+                  )}
+                </div>
+
+                {/* Stars - lebih soft */}
+                <div className="flex gap-1.5 mb-5">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
                       onClick={() => setReviewRating(star)}
-                      className={`text-2xl transition ${
-                        star <= reviewRating
-                          ? "text-yellow-500"
-                          : "text-gray-300"
-                      }`}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 ${star <= reviewRating
+                          ? "bg-yellow-400 text-white scale-105"
+                          : "bg-gray-50 text-gray-300 hover:bg-gray-100 hover:text-gray-400"
+                        }`}
                     >
                       ★
                     </button>
                   ))}
                 </div>
-              </div>
-
-              {/* Comment */}
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-900 mb-3">
-                  Komentar
-                </p>
 
                 <textarea
                   value={reviewComment}
@@ -488,99 +563,150 @@ export default function DetailProduct() {
                     setReviewComment(e.target.value);
                     setReviewError("");
                   }}
-                  placeholder="Bagaimana pengalaman kamu dengan produk ini?"
+                  placeholder="Tulis pengalamanmu di sini..."
                   rows={4}
-                  className="w-full resize-none rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-black transition"
+                  className="w-full resize-none rounded-2xl border border-gray-100 bg-gray-50/70 px-4 py-3.5 text-sm outline-none focus:bg-white focus:border-gray-300 transition-all placeholder:text-gray-400"
                 />
+
+                {reviewError && (
+                  <p className="text-sm text-red-500 mt-3">{reviewError}</p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleSubmitReview}
+                  disabled={isSubmittingReview}
+                  className="w-full mt-5 h-11 rounded-2xl bg-black text-white text-sm font-medium hover:bg-gray-800 transition disabled:opacity-50 active:scale-[0.98]"
+                >
+                  {isSubmittingReview
+                    ? "Menyimpan..."
+                    : editingReviewId
+                      ? "Simpan Perubahan"
+                      : "Kirim Ulasan"}
+                </button>
               </div>
-
-              {reviewError && (
-                <p className="text-sm text-red-500 mb-4">{reviewError}</p>
-              )}
-
-              <button
-                type="button"
-                onClick={handleSubmitReview}
-                disabled={isSubmittingReview}
-                className="px-6 py-3 rounded-xl bg-black text-white text-sm font-medium hover:bg-gray-800 transition disabled:opacity-50"
-              >
-                {isSubmittingReview ? "Mengirim..." : "Kirim Ulasan"}
-              </button>
             </div>
 
-            {isLoadingReviews ? (
-              <div className="py-10 text-center text-gray-400">
-                Memuat ulasan...
-              </div>
-            ) : reviews.length === 0 ? (
-              <div className="py-10 text-center bg-white rounded-2xl border border-gray-100">
-                <p className="text-gray-500">
-                  Belum ada ulasan untuk produk ini.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {reviews.map((review) => (
-                  <div
-                    key={review.id}
-                    className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="font-medium text-gray-900">
-                        {review.user?.name ?? "User"}
-                      </p>
-
-                      <span className="text-sm text-gray-400">
-                        {new Date(review.created_at).toLocaleDateString(
-                          "id-ID",
-                          {
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric",
-                          },
-                        )}
-                      </span>
-                    </div>
-
-                    <div className="text-yellow-500 text-sm mb-3">
-                      {"★".repeat(review.rating)}
-                      {"☆".repeat(5 - review.rating)}
-                    </div>
-
-                    <p className="text-gray-600 text-[15px] leading-relaxed">
-                      {review.comment}
-                    </p>
+            {/* ========== RIGHT ========== */}
+            <div className="lg:col-span-8">
+              {isLoadingReviews ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="h-32 rounded-[28px] bg-white border border-gray-100 animate-pulse"
+                    />
+                  ))}
+                </div>
+              ) : sortedReviews.length === 0 ? (
+                <div className="h-72 flex flex-col items-center justify-center bg-white rounded-[28px] border border-dashed border-gray-200">
+                  <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-xl mb-4">
+                    💬
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {reviews.map((r) => (
-              <div
-                key={r.id}
-                className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <p className="font-medium text-gray-900">{r.name}</p>
-                  <span className="text-sm text-gray-400">{r.date}</span>
+                  <p className="font-medium text-gray-900">Belum ada ulasan</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Jadilah yang pertama memberikan penilaian
+                  </p>
                 </div>
-                <div className="text-yellow-500 text-sm mb-3">
-                  {"★".repeat(r.rating)}
-                  {"☆".repeat(5 - r.rating)}
-                </div>
-                <p className="text-gray-600 text-[15px] leading-relaxed">
-                  {r.comment}
-                </p>
-              </div>
-            ))}
-          </div>
+              ) : (
+                <div className="space-y-3">
+                  {sortedReviews.map((review) => {
+                    const isMine = review.user?.id === currentUser?.id;
 
-          <div className="mt-8 text-center">
-            <button className="px-6 py-3 rounded-full border border-gray-300 text-sm font-medium text-gray-700 hover:bg-white transition">
-              Lihat Semua Ulasan
-            </button>
+                    // Relative time
+                    const getRelativeTime = (date: string) => {
+                      const now = new Date();
+                      const past = new Date(date);
+                      const diff = Math.floor(
+                        (now.getTime() - past.getTime()) / (1000 * 60 * 60 * 24)
+                      );
+
+                      if (diff === 0) return "Hari ini";
+                      if (diff === 1) return "Kemarin";
+                      if (diff < 7) return `${diff} hari yang lalu`;
+                      if (diff < 30) return `${Math.floor(diff / 7)} minggu yang lalu`;
+                      return past.toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      });
+                    };
+
+                    return (
+                      <article
+                        key={review.id}
+                        className={`relative bg-white rounded-[28px] p-5 sm:p-6 transition-all duration-300 ${isMine
+                            ? "border border-gray-200 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)]"
+                            : "border border-gray-100 hover:border-gray-200"
+                          }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Avatar */}
+                          <div
+                            className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${isMine
+                                ? "bg-black text-white"
+                                : "bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600"
+                              }`}
+                          >
+                            {(review.user?.name ?? "U").charAt(0).toUpperCase()}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            {/* Header */}
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-medium text-gray-900 text-[15px]">
+                                    {review.user?.name ?? "User"}
+                                  </p>
+                                  {isMine && (
+                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600">
+                                      Kamu
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex text-yellow-400 text-xs tracking-tight">
+                                    {"★".repeat(review.rating)}
+                                    <span className="text-gray-200">
+                                      {"★".repeat(5 - review.rating)}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-gray-300">·</span>
+                                  <span className="text-xs text-gray-400">
+                                    {getRelativeTime(review.created_at)}
+                                    {review.updated_at &&
+                                      review.updated_at !== review.created_at && (
+                                        <span className="italic"> · diedit</span>
+                                      )}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {isMine && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEdit(review)}
+                                  className="shrink-0 text-xs font-medium text-gray-400 hover:text-gray-700 px-2.5 py-1 rounded-lg hover:bg-gray-50 transition"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Comment */}
+                            <p className="mt-3 text-gray-600 text-[15px] leading-relaxed">
+                              {review.comment}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
@@ -619,6 +745,22 @@ export default function DetailProduct() {
             ))}
           </div>
         </section>
+
+        <SuccessModal
+          isOpen={successModal}
+          title={editingReviewId ? "Ulasan diperbarui!" : "Ulasan terkirim!"}
+          subtitle="Terima kasih sudah berbagi pengalamanmu. Ulasan akan muncul setelah ditinjau."
+          buttonText="Tutup"
+          onClose={() => setSuccessModal(false)}
+        />
+
+        <ErrorModal
+          isOpen={failedModal}
+          title="Gagal mengirim ulasan"
+          subtitle={errorMessage}
+          buttonText="Tutup"
+          onClose={() => setFailedModal(false)}
+        />
       </div>
     </div>
   );
