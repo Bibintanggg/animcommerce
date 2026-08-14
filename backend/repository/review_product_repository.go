@@ -38,7 +38,7 @@ type ReviewRepository interface {
 
 	GetSummary() (ReviewSummary, error)
 }
-
+	
 type reviewRepository struct {
 	db *gorm.DB
 }

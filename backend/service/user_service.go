@@ -18,6 +18,7 @@ type UserService interface {
 	DeleteUser(id uint) error
 	GetRecentRegisteredUsers(limit int) ([]dto.RecentActivityResponse, error)
 	ResetPassword(id uint, newPassword string) error
+	GetMe(id uint) (models.User, error)
 }
 
 type userService struct {
@@ -103,10 +104,19 @@ func (s *userService) ResetPassword(id uint, newPassword string) error {
 		[]byte(newPassword),
 		bcrypt.DefaultCost,
 	)
-	
+
 	if err != nil {
 		return err
 	}
 
 	return s.repo.ResetPassword(id, string(hash))
+}
+
+func (s *userService) GetMe(id uint) (models.User, error) {
+	user, err := s.repo.FindById(id)
+	if err != nil {
+		return models.User{}, err
+	}
+
+	return *user, nil
 }

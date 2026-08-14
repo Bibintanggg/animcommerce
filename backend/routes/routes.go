@@ -69,14 +69,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 
 	api := r.Group("/api")
 	{
-		auth := api.Group("/")
 		publicRoute := public.NewPublicRoute(api, loginHandler, registerHandler)
 		publicRoute.RegisterLoginRoute()
 
 		productRoute := customer.NewProductRoute(api, productHandler)
 		productRoute.Register()
 
-		reviewRoute := customer.NewReviewRoute(auth, reviewHandler)
+		auth := api.Group("/")
+		auth.Use(middleware.AuthMiddleware())
+		auth.GET("/me", userHandler.Me)
+
+		reviewRoute := customer.NewReviewRoute(api, auth, reviewHandler)
 		reviewRoute.Register()
 
 		auth.Use(middleware.AuthMiddleware())

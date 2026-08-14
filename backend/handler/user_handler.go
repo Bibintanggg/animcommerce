@@ -268,3 +268,33 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 	})
 
 }
+
+func (h *UserHandler) Me(c *gin.Context) {
+	userIDValue, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "unauthorized",
+		})
+		return
+	}
+
+	userID, ok := userIDValue.(int64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "invalid user id",
+		})
+		return
+	}
+
+	user, err := h.service.GetMe(uint(userID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "user not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": user,
+	})
+}

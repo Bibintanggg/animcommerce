@@ -216,3 +216,74 @@ func (h *ReviewHandler) GetReviewSummary(c *gin.Context) {
 		"data": summary,
 	})
 }
+
+func (h *ReviewHandler) UpdateReview(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid ID",
+		})
+		return
+	}
+
+	var req dto.UpdateReviewRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	userIDValue, exists := c.Get("user_id")
+
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "unauthorized",
+		})
+		return
+	}
+
+	userID, ok := userIDValue.(int64)
+
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "invalid user id",
+		})
+		return
+	}
+
+	review, err := h.reviewService.UpdateReview(
+		userID,
+		id,
+		req.Rating,
+		req.Comment,
+	)
+
+	if errors.Is(err, service.ErrReviewNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "review not found",
+		})
+		return
+	}
+
+	if errors.Is(err, service.ErrUnauthorizedReview) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "review updated successfully",
+		"data":    review,
+	})
+}

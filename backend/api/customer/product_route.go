@@ -13,7 +13,7 @@ type ProductRoute struct {
 
 func NewProductRoute(api *gin.RouterGroup, productHandler *handler.ProductHandler) *ProductRoute {
 	return &ProductRoute{
-		api:            api,	
+		api:            api,
 		productHandler: productHandler,
 	}
 }
