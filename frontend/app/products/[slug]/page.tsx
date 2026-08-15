@@ -13,11 +13,13 @@ import { Discount } from "@/types/product-discount";
 import { Review } from "@/types/product-review";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function DetailProduct() {
   const params = useParams();
+  const router = useRouter()
   const slug = params.slug as string;
 
   const {
@@ -126,6 +128,7 @@ export default function DetailProduct() {
     setReviewComment("");
     setReviewError("");
   };
+
 
   const handleSubmitReview = async () => {
     if (!product?.id) return;
@@ -440,7 +443,7 @@ export default function DetailProduct() {
                 </div>
 
                 <div className="mt-6 space-y-3">
-                  <button className="w-full h-14 bg-black text-white font-medium rounded-2xl hover:bg-gray-800 transition active:scale-[0.98]">
+                  <button onClick={() => router.push(`/buy/${product?.slug}`)} className="w-full h-14 bg-black text-white font-medium rounded-2xl hover:bg-gray-800 transition active:scale-[0.98]">
                     Beli Sekarang
                   </button>
                   <button className="w-full h-14 bg-white border border-gray-200 text-gray-900 font-medium rounded-2xl hover:bg-gray-50 transition">
@@ -548,8 +551,8 @@ export default function DetailProduct() {
                       type="button"
                       onClick={() => setReviewRating(star)}
                       className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 ${star <= reviewRating
-                          ? "bg-yellow-400 text-white scale-105"
-                          : "bg-gray-50 text-gray-300 hover:bg-gray-100 hover:text-gray-400"
+                        ? "bg-yellow-400 text-white scale-105"
+                        : "bg-gray-50 text-gray-300 hover:bg-gray-100 hover:text-gray-400"
                         }`}
                     >
                       ★
@@ -636,16 +639,16 @@ export default function DetailProduct() {
                       <article
                         key={review.id}
                         className={`relative bg-white rounded-[28px] p-5 sm:p-6 transition-all duration-300 ${isMine
-                            ? "border border-gray-200 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)]"
-                            : "border border-gray-100 hover:border-gray-200"
+                          ? "border border-gray-200 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)]"
+                          : "border border-gray-100 hover:border-gray-200"
                           }`}
                       >
                         <div className="flex items-start gap-4">
                           {/* Avatar */}
                           <div
                             className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${isMine
-                                ? "bg-black text-white"
-                                : "bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600"
+                              ? "bg-black text-white"
+                              : "bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600"
                               }`}
                           >
                             {(review.user?.name ?? "U").charAt(0).toUpperCase()}
