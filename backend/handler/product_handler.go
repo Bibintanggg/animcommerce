@@ -1,6 +1,7 @@
 package handler
 
 import (
+	disc "animcommerce/backend/dto/cart"
 	dto "animcommerce/backend/dto/products"
 	"animcommerce/backend/service"
 	"log"
@@ -194,5 +195,30 @@ func (h *ProductHandler) GetProductBySlug(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success to get product",
 		"data":    product,
+	})
+}
+
+func (h *ProductHandler) ApplyDiscount(c *gin.Context) {
+	var req disc.ApplyDiscountRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid request",
+		})
+		return
+	}
+
+	result, err := h.service.ApplyDiscount(req)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Voucher berhasil digunakan",
+		"data":    result,
 	})
 }

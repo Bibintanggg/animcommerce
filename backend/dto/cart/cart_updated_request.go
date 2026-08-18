@@ -1,5 +1,6 @@
 package dto
 
 type CartUpdatedRequest struct {
-	Quantity int `json:"quantity" binding:"required"`
+	ProductID int64 `json:"product_id" binding:"required"`
+	Quantity  int   `json:"quantity" binding:"required"`
 }

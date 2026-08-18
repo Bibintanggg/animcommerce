@@ -1,6 +1,7 @@
 package service
 
 import (
+	disc "animcommerce/backend/dto/cart"
 	dto "animcommerce/backend/dto/products"
 	"animcommerce/backend/models"
 	"animcommerce/backend/models/enum"
@@ -22,6 +23,7 @@ type ProductService interface {
 	UpdateProduct(id int64, request dto.UpdateProductRequest, fileHeader *multipart.FileHeader) (models.Product, error)
 	DeleteProduct(id int64) error
 	GetStockMovements(period string) ([]dto.StockMovementResponse, error)
+	ApplyDiscount(request disc.ApplyDiscountRequest) (disc.ApplyDiscountResponse, error)
 }
 
 type productService struct {
@@ -371,4 +373,84 @@ func (s *productService) GetStockMovements(
 	}
 
 	return result, nil
+}
+
+func (s *productService) ApplyDiscount(
+	request disc.ApplyDiscountRequest,
+) (disc.ApplyDiscountResponse, error) {
+
+	code := strings.TrimSpace(request.Code)
+
+	if code == "" {
+		return disc.ApplyDiscountResponse{}, errors.New("voucher code is required")
+	}
+
+	discount, err := s.repo.FindDiscountByCode(code)
+	if err != nil {
+		return disc.ApplyDiscountResponse{}, errors.New("voucher tidak ditemukan")
+	}
+
+	if !discount.IsActive {
+		return disc.ApplyDiscountResponse{}, errors.New("voucher tidak aktif")
+	}
+
+	if discount.MinPurchase > 0 &&
+		request.Subtotal < discount.MinPurchase {
+		return disc.ApplyDiscountResponse{}, errors.New(
+			"minimum pembelian belum terpenuhi",
+		)
+	}
+
+	if discount.UsageLimit > 0 &&
+		discount.UsedCount >= discount.UsageLimit {
+		return disc.ApplyDiscountResponse{}, errors.New(
+			"voucher sudah mencapai batas penggunaan",
+		)
+	}
+
+	now := time.Now()
+
+	if discount.StartAt != nil && now.Before(*discount.StartAt) {
+		return disc.ApplyDiscountResponse{}, errors.New(
+			"voucher belum berlaku",
+		)
+	}
+
+	if discount.EndAt != nil && now.After(*discount.EndAt) {
+		return disc.ApplyDiscountResponse{}, errors.New(
+			"voucher sudah expired",
+		)
+	}
+
+	var discountAmount int
+
+	switch strings.ToLower(discount.Type) {
+
+	case "percentage":
+		discountAmount = request.Subtotal * discount.Value / 100
+
+	case "fixed":
+		discountAmount = discount.Value
+
+	default:
+		return disc.ApplyDiscountResponse{}, errors.New(
+			"jenis discount tidak valid",
+		)
+	}
+
+	// Jangan sampai discount lebih besar dari subtotal
+	if discountAmount > request.Subtotal {
+		discountAmount = request.Subtotal
+	}
+
+	// MaxDiscount
+	if discount.MaxDiscount > 0 &&
+		discountAmount > discount.MaxDiscount {
+		discountAmount = discount.MaxDiscount
+	}
+
+	return disc.ApplyDiscountResponse{
+		Code:     discount.Code,
+		Discount: discountAmount,
+	}, nil
 }

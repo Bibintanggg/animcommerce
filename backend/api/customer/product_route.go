@@ -22,4 +22,5 @@ func (r *ProductRoute) Register() {
 	r.api.GET("/products", r.productHandler.GetProducts)
 	r.api.GET("/product-details/:slug", r.productHandler.GetProductDetails)
 	// r.api.GET("/products?=category${}")
+	r.api.POST("/cart/apply/discount", r.productHandler.ApplyDiscount)
 }

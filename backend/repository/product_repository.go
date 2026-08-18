@@ -25,6 +25,7 @@ type ProductRepository interface {
 	DeleteDiscount(productID int64) error
 	CreateProductSize(size *models.ProductSize) error
 	DeleteProductSize(productID int64) error
+	FindDiscountByCode(code string) (models.Discount, error)
 }
 
 type productRepository struct {
@@ -153,4 +154,12 @@ func (r *productRepository) DeleteProductSize(productID int64) error {
 
 func (r *productRepository) DeleteDiscount(productID int64) error {
 	return r.db.Where("product_id = ?", productID).Delete(&models.Discount{}).Error
+}
+
+func (r *productRepository) FindDiscountByCode(code string) (models.Discount, error) {
+	var discount models.Discount
+
+	err := r.db.Where("code = ?", code).First(&discount).Error
+
+	return discount, err
 }
