@@ -1,76 +1,39 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getCart, recommendProduct, removeCartItem, updateCartQuantity } from "@/services/cart.service";
+import { CartItem } from "@/types/cart-product";
+import { ProductCategory } from "@/enums/product-category";
+import { Product } from "@/types/product";
+import { number } from "framer-motion";
+import { applyDiscount } from "@/services/product.service";
 
-const initialCart = [
-  {
-    id: 1,
-    name: "Urban Sneaker X",
-    slug: "urban-sneaker-x",
-    price: 1599000,
-    image:
-      "https://images.unsplash.com/photo-1525966222134-fcfa4f85c945?w=400&q=80",
-    size: "42",
-    color: "Black",
-    category: "sneakers",
-    qty: 1,
-  },
-  {
-    id: 2,
-    name: "Trail Flex 2.0",
-    slug: "trail-flex-2-0",
-    price: 2199000,
-    image:
-      "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=400&q=80",
-    size: "43",
-    color: "Olive",
-    category: "sneakers",
-    qty: 2,
-  },
-  {
-    id: 3,
-    name: "Essential Tee",
-    slug: "essential-tee",
-    price: 349000,
-    image:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80",
-    size: "L",
-    color: "White",
-    category: "tshirt",
-    qty: 1,
-  },
-];
-
-const recommended = [
-  {
-    id: 101,
-    name: "Classic Court Low",
-    price: 1299000,
-    image:
-      "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&q=80",
-  },
-  {
-    id: 102,
-    name: "Motion Knit Elite",
-    price: 1899000,
-    image:
-      "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&q=80",
-  },
-];
 
 const CATEGORIES = [
-  { id: "sneakers", label: "Sneakers" },
-  { id: "tshirt", label: "T-Shirt" },
-  { id: "outerwear", label: "Outerwear" },
-  { id: "accessories", label: "Accessories" },
+  { id: "accessory", label: ProductCategory.AccessoryCategory },
+  { id: "figure", label: ProductCategory.FigureCategry },
+  { id: "shirt", label: ProductCategory.ShirtCategory },
 ];
 
 export default function CartPage() {
-  const [cart, setCart] = useState(initialCart);
-  const [selectedIds, setSelectedIds] = useState<number[]>(
-    initialCart.map((i) => i.id) // default semua tercentang
-  );
+  const { data: cart = [], isLoading } = useQuery({
+    queryKey: ['get-cart'],
+    queryFn: getCart,
+  })
+
+  const { data: recommended = [] } = useQuery<Product[]>({
+    queryKey: ['recommend'],
+    queryFn: async () => {
+      const response = await recommendProduct();
+      return Array.isArray(response) ? response : response.data ?? [];
+    },
+  });
+
+  const queryClient = useQueryClient()
+
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [search, setSearch] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [promoCode, setPromoCode] = useState("");
@@ -79,6 +42,41 @@ export default function CartPage() {
     discount: number;
   } | null>(null);
   const [promoError, setPromoError] = useState("");
+
+  useEffect(() => {
+    if (cart.length > 0) {
+      setSelectedIds(cart.map((item) => item.id));
+    }
+  }, [cart]);
+
+  const updateQtyMutation = useMutation({
+    mutationFn: ({
+      id,
+      quantity,
+    }: {
+      id: number;
+      quantity: number;
+    }) => updateCartQuantity({ product_id: id, quantity }),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["get-cart"],
+      });
+    },
+  });
+
+  const deleteCartMutation = useMutation({
+    mutationFn: (productId: number) => removeCartItem(productId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['get-cart']
+      })
+    }
+  })
+
+  const removeCart = (productId: number) => {
+    deleteCartMutation.mutate(productId)
+  }
 
   const format = (n: number) =>
     new Intl.NumberFormat("id-ID", {
@@ -109,12 +107,14 @@ export default function CartPage() {
 
   const filteredCart = useMemo(() => {
     return cart.filter((item) => {
-      const matchSearch = item.name
+      const matchSearch = item.product.title
         .toLowerCase()
         .includes(search.toLowerCase());
+
       const matchCategory =
         selectedCategories.length === 0 ||
-        selectedCategories.includes(item.category);
+        selectedCategories.includes(item.product.category);
+
       return matchSearch && matchCategory;
     });
   }, [cart, search, selectedCategories]);
@@ -122,45 +122,72 @@ export default function CartPage() {
   // Hanya item yang di-centang
   const selectedItems = cart.filter((item) => selectedIds.includes(item.id));
 
-  const updateQty = (id: number, delta: number) => {
-    setCart((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, qty: Math.max(1, item.qty + delta) }
-          : item
-      )
-    );
-  };
+  const updateQty = (id: number, delta: number, currentQty: number) => {
+    const newQuantity = Math.max(1, currentQty + delta);
 
-  const removeItem = (id: number) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
-    setSelectedIds((prev) => prev.filter((i) => i !== id));
+    updateQtyMutation.mutate({
+      id,
+      quantity: newQuantity,
+    });
   };
 
   const subtotal = selectedItems.reduce(
-    (acc, item) => acc + item.price * item.qty,
+    (acc, item) => acc + item.product.price * item.quantity,
     0
   );
   const discount = appliedPromo?.discount ?? 0;
   const shipping = subtotal >= 500000 ? 0 : selectedItems.length > 0 ? 25000 : 0;
   const total = Math.max(0, subtotal - discount + shipping);
 
-  const handleApplyPromo = () => {
-    setPromoError("");
-    if (!promoCode.trim()) {
-      setPromoError("Masukkan kode promo");
-      return;
-    }
-    if (promoCode.toUpperCase() === "DISKON10") {
+  // const handleApplyPromo = () => {
+  //   setPromoError("");
+  //   if (!promoCode.trim()) {
+  //     setPromoError("Masukkan kode promo");
+  //     return;
+  //   }
+  //   if (promoCode.toUpperCase() === "DISKON10") {
+  //     setAppliedPromo({
+  //       code: "DISKON10",
+  //       discount: Math.floor(subtotal * 0.1),
+  //     });
+  //   } else {
+  //     setAppliedPromo(null);
+  //     setPromoError("Kode promo tidak valid");
+  //   }
+  // };
+
+  const applyVoucherMutation = useMutation({
+    mutationFn: applyDiscount,
+    onSuccess: (data) => {
       setAppliedPromo({
-        code: "DISKON10",
-        discount: Math.floor(subtotal * 0.1),
-      });
-    } else {
+        code: data.code,
+        discount: data.discount
+      })
+
+      setPromoError("")
+    },
+
+    onError: (error: any) => {
       setAppliedPromo(null);
-      setPromoError("Kode promo tidak valid");
+      setPromoError(
+        error.response?.data?.message ??
+        "Voucher tidak dapat digunakan"
+      );
+    },
+  })
+
+  const handleApplyPromo = () => {
+    setPromoError("")
+    if (!promoCode.trim()) {
+      setPromoError("Masukkan kode promo")
+      return
     }
-  };
+
+    applyVoucherMutation.mutate({
+      code: promoCode.trim(),
+      subtotal
+    })
+  }
 
   if (cart.length === 0) {
     return (
@@ -246,7 +273,7 @@ export default function CartPage() {
                         onChange={() => toggleCategory(cat.id)}
                         className="w-4 h-4 rounded border-gray-300 accent-black"
                       />
-                      <span className="text-sm text-gray-600 group-hover:text-gray-900">
+                      <span className="first-letter:uppercase text-sm text-gray-600 group-hover:text-gray-900">
                         {cat.label}
                       </span>
                     </label>
@@ -271,22 +298,22 @@ export default function CartPage() {
                 You may also like
               </p>
               <div className="space-y-2.5">
-                {recommended.map((item) => (
+                {recommended.slice(0, 5).map((item: Product) => (
                   <Link
                     key={item.id}
-                    href={`/product/${item.id}`}
+                    href={`/product/${item.slug}`}
                     className="group flex gap-3 p-2.5 rounded-2xl bg-white border border-gray-100 hover:border-gray-200 transition"
                   >
                     <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-50 shrink-0">
                       <img
-                        src={item.image}
-                        alt={item.name}
+                        src={item.thumbnail}
+                        alt={item.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     </div>
                     <div className="min-w-0 flex flex-col justify-center">
                       <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                        {item.name}
+                        {item.title}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">
                         {format(item.price)}
@@ -334,11 +361,10 @@ export default function CartPage() {
                 return (
                   <article
                     key={item.id}
-                    className={`group flex gap-4 p-4 sm:p-5 rounded-[24px] border bg-white transition-all ${
-                      isSelected
-                        ? "border-gray-300 shadow-sm"
-                        : "border-gray-100 opacity-70"
-                    }`}
+                    className={`group flex gap-4 p-4 sm:p-5 rounded-[24px] border bg-white transition-all ${isSelected
+                      ? "border-gray-300 shadow-sm"
+                      : "border-gray-100 opacity-70"
+                      }`}
                   >
                     {/* Checkbox */}
                     <div className="pt-1">
@@ -352,12 +378,12 @@ export default function CartPage() {
 
                     {/* Image */}
                     <Link
-                      href={`/product/${item.slug}`}
+                      href={`/product/${item.product.slug}`}
                       className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-gray-50"
                     >
                       <img
-                        src={item.image}
-                        alt={item.name}
+                        src={item.product.thumbnail}
+                        alt={item.product.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     </Link>
@@ -367,58 +393,67 @@ export default function CartPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <Link
-                            href={`/product/${item.slug}`}
+                            href={`/product/${item.product.slug}`}
                             className="font-medium text-gray-900 text-[15px] hover:underline underline-offset-2"
                           >
-                            {item.name}
+                            {item.product.title}
                           </Link>
+
                           <p className="text-xs text-gray-400 mt-1">
-                            {item.color} · Ukuran {item.size}
+                            {item.product.description}
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(item.id)}
-                          className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2.5}
+
+                        <div className="flex-col gap-10 items-end">
+                          <button
+                            type="button"
+                            onClick={() => removeCart(item.product.id)}
+                            disabled={deleteCartMutation.isPending}
+                            className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2.5}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+
+                          <p className="text-xs text-gray-400 mt-1">
+                            Stock : {item.product.stock}
+                          </p>
+                        </div>
                       </div>
 
                       <div className="mt-auto pt-3 flex items-center justify-between">
                         <div className="inline-flex items-center rounded-xl bg-gray-50 border border-gray-100">
                           <button
                             type="button"
-                            onClick={() => updateQty(item.id, -1)}
+                            onClick={() => updateQty(item.product.id, -1, item.quantity)}
                             className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-black text-sm"
                           >
                             −
                           </button>
                           <span className="w-7 text-center text-sm font-medium">
-                            {item.qty}
+                            {item.quantity}
                           </span>
                           <button
                             type="button"
-                            onClick={() => updateQty(item.id, 1)}
+                            onClick={() => updateQty(item.product.id, 1, item.quantity)}
                             className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-black text-sm"
                           >
                             +
                           </button>
                         </div>
                         <p className="font-semibold text-gray-900 text-[15px]">
-                          {format(item.price * item.qty)}
+                          {format(item.product.price * item.quantity)}
                         </p>
                       </div>
                     </div>
@@ -477,9 +512,10 @@ export default function CartPage() {
                       <button
                         type="button"
                         onClick={handleApplyPromo}
+                        disabled={applyVoucherMutation.isPending}
                         className="h-10 px-4 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-black transition"
                       >
-                        Pakai
+                        {applyVoucherMutation.isPending ? "Memeriksa..." : "Pakai"}
                       </button>
                     </div>
                   )}

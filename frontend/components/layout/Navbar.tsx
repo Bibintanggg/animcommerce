@@ -3,12 +3,24 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, Search, Menu, X, Heart } from "lucide-react";
+import { getMe } from "@/services/auth.service";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { getCart } from "@/services/cart.service";
 
 export default function Navbar() {
+  const router = useRouter()
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [cartAnimating, setCartAnimating] = useState(false);
+
+  const { data: cart = [] } = useQuery({
+    queryKey: ['get-cart'],
+    queryFn: getCart,
+  })
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -17,22 +29,63 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-
-      setIsLogin(true);
-      setUserRole(user.role);
+    const handleCartUpdated = () => {
+      setCartAnimating(true)
+      const timer = setTimeout(() => {
+        setCartAnimating(false)
+      }, 600)
+      return () => clearTimeout(timer)
     }
-  }, []);
+
+    window.addEventListener("cart-updated", handleCartUpdated);
+
+    return () => {
+      window.removeEventListener("cart-updated", handleCartUpdated);
+    };
+  })
+
+  // useEffect(() => {
+
+  //   const storedUser = localStorage.getItem("user");
+
+  //   if (storedUser) {
+  //     const user = JSON.parse(storedUser);
+
+  //     setIsLogin(true);
+  //     setUserRole(user.role);
+  //   }
+  // }, []);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const token = localStorage.getItem("token")
+
+      if (!token) {
+        setIsLogin(false)
+        setUserRole(null)
+        return
+      }
+
+      try {
+        const user = await getMe()
+        setIsLogin(true)
+        setUserRole(user.role)
+      } catch {
+        setIsLogin(false)
+        setUserRole(null)
+      }
+    }
+
+    checkSession()
+  }, [])
 
   const navLinks = [
-    { href: "#featured", label: "Collection" },
-    { href: "#categories", label: "Categories" },
-    { href: "#new-arrivals", label: "New Arrivals" },
-    { href: "#best-sellers", label: "Best Sellers" },
-    { href: "#story", label: "Our Story" },
+    { href: "/#featured", label: "Collection" },
+    { href: "/#categories", label: "Categories" },
+    { href: "/#new-arrivals", label: "New Arrivals" },
+    { href: "/#best-sellers", label: "Best Sellers" },
+    { href: "/#story", label: "Our Story" },
+
     ...(userRole === "admin" || userRole === "superadmin"
       ? [
         {
@@ -44,12 +97,16 @@ export default function Navbar() {
         },
       ]
       : []),
-
-    {
-      href: "#",
-      label: isLogin ? "Logout" : "Login",
-    },
   ];
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setIsLogin(false);
+    setUserRole(null);
+    router.push("/");
+  };
+
+  const cartCount = cart.reduce((total, item) => total + item.quantity, 0)
 
   return (
     <>
@@ -81,15 +138,33 @@ export default function Navbar() {
             {/* Desktop Nav */}
             <nav className="hidden lg:flex items-center gap-8">
               {navLinks.map((link) => (
-                <a
+                <Link
                   key={link.href}
                   href={link.href}
                   className="text-[#5C5C5C] hover:text-[#1A1A1A] text-sm tracking-wide transition-colors duration-200 relative group"
                 >
                   {link.label}
+
                   <span className="absolute -bottom-1 left-0 w-0 h-px bg-[#BC002D] group-hover:w-full transition-all duration-300" />
-                </a>
+                </Link>
               ))}
+
+              {isLogin ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-[#5C5C5C] hover:text-[#1A1A1A] text-sm tracking-wide"
+                >
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="text-[#5C5C5C] hover:text-[#1A1A1A] text-sm tracking-wide"
+                >
+                  Login
+                </Link>
+              )}
             </nav>
 
             {/* Actions */}
@@ -106,15 +181,52 @@ export default function Navbar() {
               >
                 <Heart size={18} strokeWidth={1.5} />
               </button>
-              <button
-                aria-label="Cart"
+              <Link
+                href="/cart"
+                aria-label={`Cart (${cartCount} items)`}
                 className="relative p-2 text-[#1A1A1A] hover:text-[#BC002D] transition-colors duration-200"
               >
-                <a href="/cart">
+                <motion.div
+                  animate={
+                    cartAnimating
+                      ? {
+                        rotate: [0, -12, 12, -8, 8, 0],
+                        y: [0, -3, 0, -2, 0],
+                      }
+                      : {
+                        rotate: 0,
+                        y: 0,
+                      }
+                  }
+                  transition={{
+                    duration: 0.6,
+                    ease: "easeOut",
+                  }}
+                >
                   <ShoppingBag size={18} strokeWidth={1.5} />
-                </a>
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[#BC002D] rounded-full" />
-              </button>
+                </motion.div>
+
+                <AnimatePresence>
+                  {cartCount > 0 && (
+                    <motion.span
+                      key={cartCount}
+                      initial={{ scale: 0 }}
+                      animate={{
+                        scale: 1,
+                      }}
+                      exit={{ scale: 0 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 20,
+                      }}
+                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#BC002D] text-white text-[9px] font-semibold flex items-center justify-center leading-none"
+                    >
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </Link>
               <button
                 className="lg:hidden p-2 text-[#1A1A1A]"
                 onClick={() => setMenuOpen(true)}
@@ -154,17 +266,13 @@ export default function Navbar() {
               </div>
               <nav className="flex flex-col gap-1 p-6">
                 {navLinks.map((link, i) => (
-                  <motion.a
-                    key={link.href}
+                  <Link
                     href={link.href}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.06 }}
-                    onClick={() => setMenuOpen(false)}
-                    className="py-3 text-[#1A1A1A] text-base border-b border-[#F5F4F0] hover:text-[#BC002D] transition-colors"
+                    className="text-[#5C5C5C] hover:text-[#1A1A1A] text-sm tracking-wide transition-colors duration-200 relative group"
                   >
                     {link.label}
-                  </motion.a>
+                    <span className="absolute -bottom-1 left-0 w-0 h-px bg-[#BC002D] group-hover:w-full transition-all duration-300" />
+                  </Link>
                 ))}
               </nav>
               <div className="mt-auto p-6">

@@ -3,6 +3,7 @@
 import ErrorModal from "@/components/ErrorModal";
 import SuccessModal from "@/components/SuccessModal";
 import { getMe } from "@/services/auth.service";
+import { addToCart } from "@/services/cart.service";
 import { getProductDetails } from "@/services/product.service";
 import {
   createReview,
@@ -11,8 +12,9 @@ import {
 } from "@/services/reviews.service";
 import { Discount } from "@/types/product-discount";
 import { Review } from "@/types/product-review";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import { goeyToast } from "goey-toast";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -96,6 +98,12 @@ export default function DetailProduct() {
   const [successModal, setSuccessModal] = useState(false);
   const [failedModal, setFailedModal] = useState(false);
 
+  const [cartSuccessModal, setCartSuccessModal] = useState(false);
+  const [cartErrorModal, setCartErrorModal] = useState(false);
+  const [cartErrorMessage, setCartErrorMessage] = useState(
+    "Gagal menambahkan produk ke keranjang."
+  );
+
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
     queryFn: getMe,
@@ -128,6 +136,59 @@ export default function DetailProduct() {
     setReviewComment("");
     setReviewError("");
   };
+
+  const addToCartMutation = useMutation({
+    mutationFn: addToCart,
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["cart"],
+      });
+      window.dispatchEvent(new Event("cart-updated"));
+      setCartSuccessModal(true);
+    },
+
+    onError: (error) => {
+      console.error("Gagal menambahkan ke keranjang:", error);
+
+      let message = "Terjadi kesalahan. Silakan coba lagi.";
+
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+
+        if (status === 401) {
+          message = "Silakan login terlebih dahulu untuk menambahkan produk ke keranjang.";
+        } else if (status === 400) {
+          message =
+            error.response?.data?.message ||
+            "Gagal menambahkan produk ke keranjang.";
+        } else if (status === 404) {
+          message = "Produk atau keranjang tidak ditemukan.";
+        } else if (status === 422) {
+          message =
+            error.response?.data?.message ||
+            "Data produk tidak valid.";
+        } else if (status === 500) {
+          message = "Terjadi kesalahan pada server. Silakan coba lagi.";
+        } else {
+          message =
+            error.response?.data?.message ||
+            "Gagal menambahkan produk ke keranjang.";
+        }
+      }
+
+      setCartErrorMessage(message);
+      setCartErrorModal(true);
+    },
+  });
+
+  const handleAddToCart = () => {
+    if (!product?.id) return
+    addToCartMutation.mutate({
+      product_id: product.id,
+      quantity: qty,
+    })
+  }
 
 
   const handleSubmitReview = async () => {
@@ -446,8 +507,15 @@ export default function DetailProduct() {
                   <button onClick={() => router.push(`/buy/${product?.slug}`)} className="w-full h-14 bg-black text-white font-medium rounded-2xl hover:bg-gray-800 transition active:scale-[0.98]">
                     Beli Sekarang
                   </button>
-                  <button className="w-full h-14 bg-white border border-gray-200 text-gray-900 font-medium rounded-2xl hover:bg-gray-50 transition">
-                    Tambah ke Keranjang
+                  <button
+                    type="button"
+                    onClick={handleAddToCart}
+                    disabled={addToCartMutation.isPending}
+                    className="w-full h-14 bg-white border border-gray-200 text-gray-900 font-medium rounded-2xl hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {addToCartMutation.isPending
+                      ? "Menambahkan..."
+                      : "Tambah ke keranjang"}
                   </button>
                 </div>
 
@@ -763,6 +831,22 @@ export default function DetailProduct() {
           subtitle={errorMessage}
           buttonText="Tutup"
           onClose={() => setFailedModal(false)}
+        />
+
+        <SuccessModal
+          isOpen={cartSuccessModal}
+          title="Berhasil ditambahkan!"
+          subtitle={`${product?.title} berhasil ditambahkan ke keranjang.`}
+          buttonText="Lanjut Belanja"
+          onClose={() => setCartSuccessModal(false)}
+        />
+
+        <ErrorModal
+          isOpen={cartErrorModal}
+          title="Gagal menambahkan"
+          subtitle={cartErrorMessage}
+          buttonText="Tutup"
+          onClose={() => setCartErrorModal(false)}
         />
       </div>
     </div>

@@ -7,6 +7,7 @@ import {
 } from "@/types/product";
 import { ProductCategory } from "@/enums/product-category";
 import { ProductStatus } from "@/enums/product-status";
+import { ApplyDiscountRequest, ApplyDiscountResponse } from "@/types/product-discount";
 
 interface ProductResponse {
   data: Product[];
@@ -143,3 +144,9 @@ export const getStockMovements = async (): Promise<StockMovementChart[]> => {
   const response = await api.get<{ message: string, data: StockMovementChart[] }>("/admin/products/stock-movements");
   return response.data.data;
 };
+
+export const applyDiscount = async (data: ApplyDiscountRequest): Promise<ApplyDiscountResponse> => {
+  const response = await api.post("/cart/apply/discount", data)
+  return response.data.data
+}
+

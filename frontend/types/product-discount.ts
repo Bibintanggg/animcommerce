@@ -25,3 +25,13 @@ export interface DiscountFormData {
     end_at: string | null;
     is_active: boolean;
 }
+
+export interface ApplyDiscountRequest {
+    code: string;
+    subtotal: number;
+}
+
+export interface ApplyDiscountResponse {
+    code: string;
+    discount: number;
+}
