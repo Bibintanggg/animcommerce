@@ -1,99 +1,112 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function BrandStory() {
   return (
-    <section id="story" className="py-20 lg:py-40 overflow-hidden">
+    <section id="story" className="py-24 lg:py-32 bg-[#FAFAF9]">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
-          {/* Image side */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+          {/* Left - Image */}
           <motion.div
-            initial={{ opacity: 0, x: -40 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            className="relative order-2 lg:order-1"
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="lg:col-span-5 relative"
           >
-            <div className="relative aspect-[4/5] overflow-hidden">
+            <div className="relative aspect-[3/4] overflow-hidden rounded-sm">
               <img
-                src="https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&q=90"
+                src="https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=900&q=90"
                 alt="Japanese culture"
                 className="w-full h-full object-cover"
               />
             </div>
-            {/* Offset accent box */}
-            <div className="absolute -bottom-6 -right-6 w-48 h-48 border border-[#BC002D]/25 -z-10 hidden lg:block" />
-            {/* Small quote float */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-              className="absolute -right-8 top-1/3 bg-white p-5 shadow-sm border border-[#E5E3DF] max-w-[180px] hidden xl:block"
-            >
-              <p className="font-display text-3xl text-[#BC002D] mb-1">魂</p>
-              <p className="text-xs text-[#9A9A9A] leading-relaxed">
-                Tamashii — the spirit within every creation
-              </p>
-            </motion.div>
+
+            {/* Floating badge */}
+            <div className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-sm px-5 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] tracking-[0.15em] uppercase text-[#9A9A9A] mb-0.5">
+                  Est.
+                </p>
+                <p className="font-display text-xl text-[#1A1A1A]">2018</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] tracking-[0.15em] uppercase text-[#9A9A9A] mb-0.5">
+                  Origin
+                </p>
+                <p className="font-display text-xl text-[#1A1A1A]">Osaka</p>
+              </div>
+            </div>
           </motion.div>
 
-          {/* Text side */}
+          {/* Right - Content */}
           <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            className="order-1 lg:order-2"
+            transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            className="lg:col-span-7 lg:pl-8"
           >
-            <p className="text-[#BC002D] text-xs tracking-[0.2em] uppercase font-medium mb-5">
+            <p className="text-[#BC002D] text-xs tracking-[0.2em] uppercase font-medium mb-4">
               私たちについて
             </p>
+
             <h2
-              className="font-bold text-[#1A1A1A] leading-tight mb-8"
-              style={{ fontSize: "clamp(32px, 4vw, 52px)" }}
+              className="font-display text-[#1A1A1A] leading-[1.15] mb-8"
+              style={{ fontSize: "clamp(32px, 4.2vw, 48px)" }}
             >
-              Rooted in
+              Crafted with
               <br />
-              Japanese Philosophy
+              Japanese spirit
             </h2>
 
-            <div className="space-y-5 text-[#5C5C5C] text-base leading-relaxed">
+            <div className="space-y-5 text-[#5C5C5C] text-[15px] leading-[1.75] max-w-xl">
               <p>
-                NIHON was founded on a simple belief: that anime and manga are not just entertainment — they are a living cultural art form, deserving the same reverence as any museum-quality piece.
+                NIHON was built on a simple belief — anime and manga are not just
+                entertainment. They are a living cultural art form that deserves
+                the same respect as any museum piece.
               </p>
               <p>
-                We source directly from Japan's most celebrated studios and artisans, each piece authenticated before it reaches you. From hand-painted scale figures to first-edition manga, every item carries the spirit of its origin.
+                We work directly with studios and artisans across Japan. Every
+                figure, every print, every accessory is authenticated before it
+                reaches you.
               </p>
               <p>
-                The Japanese concept of <em className="text-[#1A1A1A] font-medium">Monozukuri</em> — the art of making things with dedication and craftsmanship — guides everything we do. We don't just sell merchandise. We preserve moments in time.
+                Guided by <span className="text-[#1A1A1A] font-medium">Monozukuri</span> —
+                the spirit of making things with care and precision — we don’t
+                just sell products. We preserve moments.
               </p>
             </div>
 
-            <div className="mt-10 pt-10 border-t border-[#E5E3DF] grid grid-cols-2 gap-8">
+            {/* Stats */}
+            <div className="mt-12 flex flex-wrap gap-10">
               {[
-                { value: "2018", label: "Founded in Osaka" },
-                { value: "100%", label: "Authenticity Guaranteed" },
-              ].map((item) => (
-                <div key={item.label}>
-                  <div className="font-display text-3xl text-[#1A1A1A] mb-1">
-                    {item.value}
-                  </div>
-                  <div className="text-xs text-[#9A9A9A] tracking-wide">
-                    {item.label}
-                  </div>
+                { value: "100%", label: "Authentic" },
+                { value: "2.4k+", label: "Collectors" },
+                { value: "48h", label: "Ship worldwide" },
+              ].map((stat) => (
+                <div key={stat.label}>
+                  <p className="font-display text-2xl text-[#1A1A1A] mb-1">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-[#9A9A9A] tracking-wide">
+                    {stat.label}
+                  </p>
                 </div>
               ))}
             </div>
 
-            <a
-              href="#"
-              className="group inline-flex items-center gap-3 mt-10 text-sm font-medium text-[#1A1A1A] hover:text-[#BC002D] transition-colors"
+            <Link
+              href="/about"
+              className="group inline-flex items-center gap-2 mt-12 text-sm font-medium text-[#1A1A1A] hover:text-[#BC002D] transition-colors"
             >
-              Read our full story
-              <span className="w-8 h-px bg-current group-hover:w-12 transition-all duration-300" />
-            </a>
+              Read our story
+              <span className="group-hover:translate-x-1 transition-transform duration-200">
+                →
+              </span>
+            </Link>
           </motion.div>
         </div>
       </div>

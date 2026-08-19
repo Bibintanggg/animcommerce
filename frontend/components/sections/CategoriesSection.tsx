@@ -8,6 +8,7 @@ import ErrorState from "../states/ErrorStates";
 import errorAnimation from "../../public/assets/lottie/error-stress.json";
 import { getAllProducts } from "@/services/product.service";
 import { ProductCategory } from "@/enums/product-category";
+import Link from "next/link";
 
 export default function CategoriesSection() {
   const {
@@ -36,19 +37,17 @@ export default function CategoriesSection() {
       };
     });
   }, [products]);
+
   const getCategoryImage = (key: string) => {
     switch (key) {
       case "figure":
-        return "https://images.unsplash.com/photo-1606663889134-b1dedb5ed8b7?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YWN0aW9uJTIwZmlndXJlfGVufDB8fDB8fHww";
-
+        return "https://images.unsplash.com/photo-1606663889134-b1dedb5ed8b7?w=800&auto=format&fit=crop&q=80";
       case "accessory":
         return "https://tsuru.fr/116979-large_default/specchio-tascabile-giapponese-in-fiore-di-prugna-in-chirimen-kokoro-kagami-colore-tra-cui-scegliere.jpg";
-
       case "shirt":
-        return "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQd5NI7bSLkD0AZscZv74CHXUoCpJLBr7n7yYA3q2OV3m7sngBwu6hg-DJM&s=10";
-
+        return "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&auto=format&fit=crop&q=80";
       default:
-        return "https://images.freepik.com/japan-aesthetic-default.jpg";
+        return "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80";
     }
   };
 
@@ -86,7 +85,7 @@ export default function CategoriesSection() {
   }
 
   return (
-    <section id="categories" className="py-20 lg:py-32">
+    <section id="categories" className="py-20 lg:py-32 bg-[#FAFAFA]">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-12">
         {/* Header */}
         <div className="mb-12 lg:mb-16">
@@ -101,13 +100,42 @@ export default function CategoriesSection() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
-          {categories.map((cat) => (
-            <motion.a key={cat.key}>
-              <img className="w-full h-full object-cover flex gap-10 justify-center" src={getCategoryImage(cat.key)} />
-              <h3 className="font-semibold text-2xl">{getCategoryName(cat.key)}</h3>
-              <span className="text-xl font-semibold">{cat.count} items</span>
-            </motion.a>
+        {/* Categories Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+          {categories.map((cat, index) => (
+            <motion.div
+              key={cat.key}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <Link
+                href={`/products?category=${cat.key}`}
+                className="group relative block overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow duration-300"
+              >
+                {/* Image */}
+                <div className="relative aspect-[4/5] overflow-hidden">
+                  <img
+                    src={getCategoryImage(cat.key)}
+                    alt={getCategoryName(cat.key)}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                </div>
+
+                {/* Content */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                  <h3 className="font-display text-2xl lg:text-3xl font-medium mb-1">
+                    {getCategoryName(cat.key)}
+                  </h3>
+                  <p className="text-sm text-white/80 tracking-wide">
+                    {cat.count} {cat.count === 1 ? "item" : "items"}
+                  </p>
+                </div>
+              </Link>
+            </motion.div>
           ))}
         </div>
       </div>
