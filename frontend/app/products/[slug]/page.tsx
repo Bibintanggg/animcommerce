@@ -4,15 +4,16 @@ import ErrorModal from "@/components/ErrorModal";
 import SuccessModal from "@/components/SuccessModal";
 import { getMe } from "@/services/auth.service";
 import { addToCart } from "@/services/cart.service";
-import { getProductDetails } from "@/services/product.service";
+import { getAllProducts, getProductDetails, getProducts } from "@/services/product.service";
 import {
   createReview,
   getProductReviews,
   updateReview,
 } from "@/services/reviews.service";
+import { Product } from "@/types/product";
 import { Discount } from "@/types/product-discount";
 import { Review } from "@/types/product-review";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useQueryErrorResetBoundary } from "@tanstack/react-query";
 import axios from "axios";
 import { goeyToast } from "goey-toast";
 import Link from "next/link";
@@ -42,49 +43,17 @@ export default function DetailProduct() {
     enabled: !!product?.id,
   });
 
-  const recommended = [
-    {
-      id: 1,
-      name: "Urban Sneaker X",
-      price: 1599000,
-      image:
-        "https://images.unsplash.com/photo-1525966222134-fcfa4f85c945?w=400&q=80",
-      rating: 4.7,
-    },
-    {
-      id: 2,
-      name: "Trail Flex 2.0",
-      price: 2199000,
-      image:
-        "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=400&q=80",
-      rating: 4.9,
-    },
-    {
-      id: 3,
-      name: "Classic Court Low",
-      price: 1299000,
-      image:
-        "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&q=80",
-      rating: 4.6,
-    },
-    {
-      id: 4,
-      name: "Motion Knit Elite",
-      price: 1899000,
-      image:
-        "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&q=80",
-      rating: 4.8,
-    },
-  ];
+  const { data: recommended = [], isLoading: IsRecommendLoading, error: recommendError } = useQuery({
+    queryKey: ["get-product-recommend"],
+    queryFn: getAllProducts,
+  })
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState("42");
-  const [qty, setQty] = useState(1);
+  const [qty, setQty] = useState(0)
 
   const [discountCode, setDiscountCode] = useState("");
-  const [appliedDiscount, setAppliedDiscount] = useState<Discount | null>(
-    null
-  );
+  const [appliedDiscount, setAppliedDiscount] = useState<Discount | null>(null);
   const [discountError, setDiscountError] = useState("");
 
   const [reviewRating, setReviewRating] = useState(5);
@@ -136,6 +105,11 @@ export default function DetailProduct() {
     setReviewComment("");
     setReviewError("");
   };
+
+  useEffect(() => {
+    if (!product) return
+    setQty(product.stock > 0 ? 1 : 0)
+  }, [product?.id, product?.stock])
 
   const addToCartMutation = useMutation({
     mutationFn: addToCart,
@@ -361,9 +335,22 @@ export default function DetailProduct() {
           <div className="lg:col-span-5">
             <div className="lg:sticky lg:top-8 space-y-7">
               <div>
-                <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
-                  {product?.title}
-                </h1>
+                <div className="flex items-center justify-between">
+                  <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
+                    {product?.title}
+                  </h1>
+
+                  <h1
+                    className={`text-lg font-medium tracking-tight ${(product?.stock ?? 0) > 0
+                        ? "text-gray-400"
+                        : "text-red-500"
+                      }`}
+                  >
+                    {(product?.stock ?? 0) > 0
+                      ? `Stok tersisa ${product?.stock}`
+                      : "Stok Habis"}
+                  </h1>
+                </div>
 
                 <div className="flex items-center gap-3 mt-5">
                   <span className="text-2xl font-semibold text-gray-900">
@@ -402,15 +389,29 @@ export default function DetailProduct() {
                 </p>
                 <div className="inline-flex items-center bg-white border border-gray-200 rounded-2xl">
                   <button
-                    onClick={() => setQty(Math.max(1, qty - 1))}
-                    className="w-12 h-12 flex items-center justify-center text-xl text-gray-600 hover:bg-gray-50 rounded-l-2xl"
+                    type="button"
+                    onClick={() =>
+                      setQty((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={qty <= 1 || !product || product.stock <= 0}
+                    className="w-12 h-12 flex items-center justify-center text-xl text-gray-600 hover:bg-gray-50 rounded-l-2xl disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     −
                   </button>
                   <span className="w-12 text-center font-medium">{qty}</span>
                   <button
-                    onClick={() => setQty(qty + 1)}
-                    className="w-12 h-12 flex items-center justify-center text-xl text-gray-600 hover:bg-gray-50 rounded-r-2xl"
+                    type="button"
+                    onClick={() =>
+                      setQty((prev) =>
+                        Math.min(product?.stock ?? 0, prev + 1)
+                      )
+                    }
+                    disabled={
+                      !product ||
+                      product.stock <= 0 ||
+                      qty >= product.stock
+                    }
+                    className="w-12 h-12 flex items-center justify-center text-xl text-gray-600 hover:bg-gray-50 rounded-r-2xl disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     +
                   </button>
@@ -788,32 +789,55 @@ export default function DetailProduct() {
           </h2>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {recommended.map((item) => (
-              <div
-                key={item.id}
-                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-all duration-300"
-              >
-                <div className="aspect-square overflow-hidden bg-gray-50">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <div className="p-4">
-                  <p className="font-medium text-gray-900 text-sm line-clamp-1">
-                    {item.name}
-                  </p>
-                  <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
-                    <span className="text-yellow-500">★</span>
-                    <span>{item.rating}</span>
+            {recommended.map((item: Product) => {
+              const reviews = item.reviews ?? [];
+
+              const averageRating =
+                reviews.length > 0
+                  ? reviews.reduce(
+                    (total, review) => total + review.rating,
+                    0,
+                  ) / reviews.length
+                  : null;
+
+              return (
+                <div
+                  key={item.id}
+                  className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-all duration-300"
+                >
+                  <div className="aspect-square overflow-hidden bg-gray-50">
+                    <img
+                      src={item.thumbnail}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
                   </div>
-                  <p className="mt-2 font-semibold text-gray-900">
-                    {format(item.price)}
-                  </p>
+
+                  <div className="p-4">
+                    <p className="font-medium text-gray-900 text-sm line-clamp-1">
+                      {item.title}
+                    </p>
+
+                    {/* Average rating hanya tampil satu kali */}
+                    <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
+                      {averageRating !== null ? (
+                        <>
+                          <span className="text-yellow-500">★</span>
+                          <span>{averageRating.toFixed(1)}</span>
+                          <span>({reviews.length} ulasan)</span>
+                        </>
+                      ) : (
+                        <span>Belum ada ulasan</span>
+                      )}
+                    </div>
+
+                    <p className="mt-2 font-semibold text-gray-900">
+                      {format(item.price)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -849,6 +873,6 @@ export default function DetailProduct() {
           onClose={() => setCartErrorModal(false)}
         />
       </div>
-    </div>
+    </div >
   );
 }

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/table/data-table";
 import { deleteProducts, getProducts, getStockMovements } from "@/services/product.service";
 import { Product } from "@/types/product";
+import { AdminReview } from "@/types/product-review";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PaginationState } from "@tanstack/react-table";
 import { goeyToast } from "goey-toast";
@@ -26,6 +27,7 @@ import {
     Box,
     DollarSign,
     ShoppingBag,
+    StarIcon,
 } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import {
@@ -711,7 +713,28 @@ export default function Products() {
                                 {
                                     type: "custom",
                                     header: "Review",
-                                    render: (review) => <span>{review.reviews?.map((rev) => rev.rating) || "-"}</span>,
+                                    render: (product: Product) => {
+                                        const reviews = product.reviews ?? [];
+
+                                        if (reviews.length === 0) {
+                                            return <span className="text-black/60 text-sm">Belum ada review</span>;
+                                        }
+
+                                        const average =
+                                            reviews.reduce(
+                                                (total, review) => total + review.rating,
+                                                0,
+                                            ) / reviews.length;
+
+                                        return (
+                                            <span className="flex items-center gap-2">
+                                                <StarIcon size={15} /> {average.toFixed(1)}
+                                                <span className="text-red-700">
+                                                    ({reviews.length})
+                                                </span>
+                                            </span>
+                                        );
+                                    },
                                 },
                                 {
                                     type: "date",
