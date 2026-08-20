@@ -301,7 +301,7 @@ export default function CartPage() {
                 {recommended.slice(0, 5).map((item: Product) => (
                   <Link
                     key={item.id}
-                    href={`/product/${item.slug}`}
+                    href={`/products/${item.slug}`}
                     className="group flex gap-3 p-2.5 rounded-2xl bg-white border border-gray-100 hover:border-gray-200 transition"
                   >
                     <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-50 shrink-0">
@@ -378,7 +378,7 @@ export default function CartPage() {
 
                     {/* Image */}
                     <Link
-                      href={`/product/${item.product.slug}`}
+                      href={`/products/${item.product.slug}`}
                       className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-gray-50"
                     >
                       <img
@@ -393,7 +393,7 @@ export default function CartPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <Link
-                            href={`/product/${item.product.slug}`}
+                            href={`/products/${item.product.slug}`}
                             className="font-medium text-gray-900 text-[15px] hover:underline underline-offset-2"
                           >
                             {item.product.title}

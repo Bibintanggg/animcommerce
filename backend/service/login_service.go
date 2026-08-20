@@ -26,7 +26,7 @@ func NewLoginService(repo repository.LoginRepository) LoginService {
 func (s *loginService) Login(req dto.LoginRequest) (*dto.LoginResponse, error) {
 	user, err := s.repo.FindByEmail(req.Email)
 	if err != nil {
-		return nil, errors.New("invalid email")
+		return nil, errors.New("invalid email or password")
 	}
 
 	err = bcrypt.CompareHashAndPassword(
@@ -35,13 +35,10 @@ func (s *loginService) Login(req dto.LoginRequest) (*dto.LoginResponse, error) {
 	)
 
 	if err != nil {
-		return nil, errors.New("Invalid Password")
+		return nil, errors.New("invalid email or password")
 	}
 
-	token, err := helper.GenerateToken(
-		user.ID,
-		string(user.Role),
-	)
+	token, err := helper.GenerateToken(user.ID)
 	if err != nil {
 		return nil, errors.New("failed to generate token")
 	}

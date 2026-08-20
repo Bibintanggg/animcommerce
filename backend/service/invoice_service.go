@@ -95,9 +95,7 @@ func (s *invoiceService) GenerateInvoice(orderID int64) (string, error) {
 		return "", err
 	}
 
-	order.InvoiceURL = filename
-
-	err = s.orderRepo.Update(order)
+	err = s.db.Model(order).Update("invoice_url", filename).Error
 	if err != nil {
 		return "", err
 	}

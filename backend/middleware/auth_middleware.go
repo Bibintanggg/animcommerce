@@ -2,18 +2,20 @@ package middleware
 
 import (
 	"animcommerce/backend/helper"
+	"animcommerce/backend/models"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
-func AuthMiddleware() gin.HandlerFunc {
+func AuthMiddleware(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 
-		if authHeader == "" {
+		parts := strings.Fields(authHeader)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"message": "Unauthorized",
 			})
@@ -21,16 +23,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
-
-		token, err := jwt.ParseWithClaims(
-			tokenString,
-			&helper.JWTClaim{},
-			func(t *jwt.Token) (interface{}, error) {
-				return helper.SECRET_KEY, nil
-			},
-		)
-
+		claims, err := helper.ParseToken(parts[1])
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"message": "Invalid token",
@@ -39,18 +32,17 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		claims, ok := token.Claims.(*helper.JWTClaim)
-
-		if !ok || !token.Valid {
+		var user models.User
+		if err := db.Select("id", "role").First(&user, claims.UserID).Error; err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "Unauthorized",
+				"message": "Account is no longer available",
 			})
 			c.Abort()
 			return
 		}
 
 		c.Set("user_id", claims.UserID)
-		c.Set("role", claims.Role)
+		c.Set("role", string(user.Role))
 		c.Next()
 	}
 }

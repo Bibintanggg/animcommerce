@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"mime/multipart"
+	"net/http"
 	"strings"
 	"time"
 
@@ -18,7 +19,9 @@ import (
 
 type ProductService interface {
 	GetProducts(filter dto.ProductFilter) ([]models.Product, int64, error)
+	GetPublishedProducts(filter dto.ProductFilter) ([]models.Product, int64, error)
 	GetProductDetails(slug string) (models.Product, error)
+	GetPublishedProductDetails(slug string) (models.Product, error)
 	CreateProduct(userID int64, request dto.CreateProductRequest, fileHeader *multipart.FileHeader) (dto.ProductResponse, error)
 	UpdateProduct(id int64, request dto.UpdateProductRequest, fileHeader *multipart.FileHeader) (models.Product, error)
 	DeleteProduct(id int64) error
@@ -29,6 +32,41 @@ type ProductService interface {
 type productService struct {
 	repo    repository.ProductRepository
 	storage images.Storage
+}
+
+const maxProductImageSize = 5 << 20
+
+var allowedProductImageTypes = map[string]struct{}{
+	"image/jpeg": {},
+	"image/png":  {},
+	"image/webp": {},
+}
+
+func validateProductImage(fileHeader *multipart.FileHeader) error {
+	if fileHeader == nil {
+		return errors.New("thumbnail is required")
+	}
+	if fileHeader.Size <= 0 || fileHeader.Size > maxProductImageSize {
+		return errors.New("thumbnail must be smaller than 5 MB")
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return errors.New("unable to read thumbnail")
+	}
+	defer file.Close()
+
+	header := make([]byte, 512)
+	bytesRead, err := file.Read(header)
+	if err != nil && bytesRead == 0 {
+		return errors.New("unable to read thumbnail")
+	}
+	contentType := http.DetectContentType(header[:bytesRead])
+	if _, allowed := allowedProductImageTypes[contentType]; !allowed {
+		return errors.New("thumbnail must be a JPEG, PNG, or WebP image")
+	}
+
+	return nil
 }
 
 func NewProductService(repo repository.ProductRepository, storage images.Storage) ProductService {
@@ -42,8 +80,16 @@ func (s *productService) GetProducts(filter dto.ProductFilter) ([]models.Product
 	return s.repo.FindAll(filter)
 }
 
+func (s *productService) GetPublishedProducts(filter dto.ProductFilter) ([]models.Product, int64, error) {
+	return s.repo.FindPublished(filter)
+}
+
 func (s *productService) GetProductDetails(slug string) (models.Product, error) {
 	return s.repo.FindBySlug(slug)
+}
+
+func (s *productService) GetPublishedProductDetails(slug string) (models.Product, error) {
+	return s.repo.FindPublishedBySlug(slug)
 }
 
 func (s *productService) CreateProduct(userID int64, request dto.CreateProductRequest, fileHeader *multipart.FileHeader) (dto.ProductResponse, error) {
@@ -52,6 +98,9 @@ func (s *productService) CreateProduct(userID int64, request dto.CreateProductRe
 	}
 	if request.Price < 0 {
 		return dto.ProductResponse{}, errors.New("price must be greater than 0")
+	}
+	if err := validateProductImage(fileHeader); err != nil {
+		return dto.ProductResponse{}, err
 	}
 
 	file, err := fileHeader.Open()
@@ -208,6 +257,9 @@ func (s *productService) UpdateProduct(id int64, request dto.UpdateProductReques
 	}
 
 	if fileHeader != nil {
+		if err := validateProductImage(fileHeader); err != nil {
+			return models.Product{}, err
+		}
 		file, err := fileHeader.Open()
 		if err != nil {
 			return models.Product{}, err

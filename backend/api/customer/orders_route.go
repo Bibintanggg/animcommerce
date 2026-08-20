@@ -22,4 +22,5 @@ func (r *OrdersRoute) Register() {
 	r.api.POST("/orders/checkout", r.orderHandler.Checkout)
 	r.api.GET("/orders", r.orderHandler.GetMyOrders)
 	r.api.GET("/orders/:id", r.orderHandler.GetOrderDetail)
+	r.api.GET("/orders/:id/invoice", r.orderHandler.GetMyInvoice)
 }

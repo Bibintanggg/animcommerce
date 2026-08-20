@@ -18,6 +18,7 @@ type OrderService interface {
 	Checkout(userID int64, req dto.CheckoutRequest) error
 	GetMyOrders(userID int64) ([]models.OrderProduct, error)
 	GetOrderDetail(userID int64, orderID int64) (*models.OrderProduct, error)
+	GetAdminOrderDetail(orderID int64) (*models.OrderProduct, error)
 	UpdateOrderStatus(orderID int64, req dto.UpdateOrderStatusRequest) error
 }
 
@@ -50,12 +51,11 @@ func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, orderIte
 }
 
 func (s *orderService) GetAllOrders(filter dto.OrderFilter) ([]models.OrderProduct, int64, error) {
-	orders, err := s.orderRepo.GetAllOrders(filter)
+	orders, total, err := s.orderRepo.GetAllOrders(filter)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	var total int64 = int64(len(orders))
 	return orders, total, nil
 }
 
@@ -192,6 +192,10 @@ func (s *orderService) GetOrderDetail(userID int64, orderID int64) (*models.Orde
 	return order, nil
 }
 
+func (s *orderService) GetAdminOrderDetail(orderID int64) (*models.OrderProduct, error) {
+	return s.orderRepo.FindByID(orderID)
+}
+
 func (s *orderService) UpdateOrderStatus(orderID int64, req dto.UpdateOrderStatusRequest) error {
 	order, err := s.orderRepo.FindByID(orderID)
 	if err != nil {
@@ -199,6 +203,9 @@ func (s *orderService) UpdateOrderStatus(orderID int64, req dto.UpdateOrderStatu
 	}
 
 	if req.StatusOrder != "" {
+		if !isValidOrderStatus(req.StatusOrder) {
+			return errors.New("invalid order status")
+		}
 		order.StatusOrder = enum.StatusOrder(req.StatusOrder)
 
 		if req.StatusOrder == string(enum.OrderCompleted) {
@@ -208,6 +215,13 @@ func (s *orderService) UpdateOrderStatus(orderID int64, req dto.UpdateOrderStatu
 	}
 
 	if req.StatusShipment != "" {
+		if !isValidShipmentStatus(req.StatusShipment) {
+			return errors.New("invalid shipment status")
+		}
+		if req.StatusShipment == string(enum.ShipmentInTransit) &&
+			(req.Courier == "" || req.TrackingNumber == "") {
+			return errors.New("courier and tracking number are required")
+		}
 
 		order.StatusShipment = enum.ShipmentStatus(req.StatusShipment)
 
@@ -220,4 +234,22 @@ func (s *orderService) UpdateOrderStatus(orderID int64, req dto.UpdateOrderStatu
 	}
 
 	return s.orderRepo.Update(order)
+}
+
+func isValidOrderStatus(status string) bool {
+	switch enum.StatusOrder(status) {
+	case enum.OrderPending, enum.OrderProcessing, enum.OrderCancelled, enum.OrderCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidShipmentStatus(status string) bool {
+	switch enum.ShipmentStatus(status) {
+	case enum.ShipmentAwaitingPickup, enum.ShipmentInTransit, enum.ShipmentDelivered:
+		return true
+	default:
+		return false
+	}
 }

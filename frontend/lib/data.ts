@@ -18,6 +18,8 @@ export interface Testimonial {
   product: string;
 }
 
+export const testimonials: Testimonial[] = [];
+
 // export const featuredProducts: Product[] = [
 //   {
 //     id: 1,

@@ -8,7 +8,7 @@ import (
 )
 
 type OrderRepository interface {
-	GetAllOrders(filter dto.OrderFilter) ([]models.OrderProduct, error)
+	GetAllOrders(filter dto.OrderFilter) ([]models.OrderProduct, int64, error)
 	Create(order *models.OrderProduct) error
 	FindByID(id int64) (*models.OrderProduct, error)
 	FindByUserID(userID int64) ([]models.OrderProduct, error)
@@ -45,15 +45,11 @@ func (r *orderRepository) Update(order *models.OrderProduct) error {
 	return r.db.Save(order).Error
 }
 
-func (r *orderRepository) GetAllOrders(filter dto.OrderFilter) ([]models.OrderProduct, error) {
+func (r *orderRepository) GetAllOrders(filter dto.OrderFilter) ([]models.OrderProduct, int64, error) {
 	var orders []models.OrderProduct
+	var total int64
 
-	query := r.db.
-		Preload("User").
-		Preload("UserAddress").
-		Preload("OrderItem").
-		Preload("OrderItem.Product").
-		Order("created_at DESC")
+	query := r.db.Model(&models.OrderProduct{})
 
 	if filter.Search != "" {
 		search := "%" + filter.Search + "%"
@@ -67,6 +63,10 @@ func (r *orderRepository) GetAllOrders(filter dto.OrderFilter) ([]models.OrderPr
 			)
 	}
 
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
 	if filter.Limit > 0 {
 		offset := (filter.Page - 1) * filter.Limit
 
@@ -75,7 +75,13 @@ func (r *orderRepository) GetAllOrders(filter dto.OrderFilter) ([]models.OrderPr
 			Limit(filter.Limit)
 	}
 
-	err := query.Find(&orders).Error
+	err := query.
+		Preload("User").
+		Preload("UserAddress").
+		Preload("OrderItem").
+		Preload("OrderItem.Product").
+		Order("order_products.created_at DESC").
+		Find(&orders).Error
 
-	return orders, err
+	return orders, total, err
 }

@@ -1,19 +1,41 @@
-version: '3.8'
-
 services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: animcommerce
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   backend:
     build: ./backend
     ports:
       - "8080:8080"
     environment:
-      - APP_ENV=development
-    restart: always
+      DATABASE_DSN: "root:${MYSQL_ROOT_PASSWORD}@tcp(db:3306)/animcommerce?charset=utf8mb4&parseTime=True&loc=Local"
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:?CLOUDINARY_CLOUD_NAME must be set}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:?CLOUDINARY_API_KEY must be set}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:?CLOUDINARY_API_SECRET must be set}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
     ports:
       - "3000:3000"
     environment:
-     - NEXT_PUBLIC_API_URL=http://localhost:8080
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api
     depends_on:
       - backend
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

@@ -1,6 +1,17 @@
+"use client";
+
 import ProductCard from "@/components/common/ProductCard";
+import { getAllProducts } from "@/services/product.service";
+import { useQuery } from "@tanstack/react-query";
 
 export default function BestSellers() {
+	const { data: bestSellers = [] } = useQuery({
+		queryKey: ["best-sellers"],
+		queryFn: getAllProducts,
+		select: (products) =>
+			[...products].sort((a, b) => b.sold - a.sold).slice(0, 8),
+	});
+
   return (
     <section id="best-sellers" className="py-20 lg:py-32 bg-[#F7F6F3]">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-12">

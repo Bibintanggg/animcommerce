@@ -32,7 +32,9 @@ export const addToCart = async (payload: AddToCartRequest) => {
 }
 
 export const updateCartQuantity = async (payload: UpdateCartQuantityRequest) => {
-    const response = await api.put("/cart", payload)
+	const response = await api.put(`/cart/${payload.product_id}`, {
+		quantity: payload.quantity,
+	})
     return response.data
 }
 

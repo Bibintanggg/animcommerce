@@ -12,7 +12,9 @@ import (
 
 type ProductRepository interface {
 	FindAll(filter dto.ProductFilter) ([]models.Product, int64, error)
+	FindPublished(filter dto.ProductFilter) ([]models.Product, int64, error)
 	FindBySlug(slug string) (models.Product, error)
+	FindPublishedBySlug(slug string) (models.Product, error)
 	FindByID(id int64) (models.Product, error)
 	Create(product *models.Product) error
 	Update(product *models.Product) error
@@ -57,9 +59,43 @@ func (r *productRepository) FindAll(filter dto.ProductFilter) ([]models.Product,
 	return products, total, err
 }
 
+func (r *productRepository) FindPublished(filter dto.ProductFilter) ([]models.Product, int64, error) {
+	var products []models.Product
+	var total int64
+
+	query := r.db.Model(&models.Product{}).
+		Preload("Discounts").
+		Preload("Size").
+		Where("is_active = ?", enum.ProductPublished)
+
+	if filter.Search != "" {
+		query = query.Where("title LIKE ?", "%"+filter.Search+"%")
+	}
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := query.
+		Offset((filter.Page - 1) * filter.Limit).
+		Limit(filter.Limit).
+		Find(&products).Error
+
+	return products, total, err
+}
+
 func (r *productRepository) FindBySlug(slug string) (models.Product, error) {
 	var product models.Product
 	err := r.db.Preload("User").Preload("Discounts").Preload("Size").Where("slug = ?", slug).First(&product).Error
+	return product, err
+}
+
+func (r *productRepository) FindPublishedBySlug(slug string) (models.Product, error) {
+	var product models.Product
+	err := r.db.
+		Preload("Discounts").
+		Preload("Size").
+		Where("slug = ? AND is_active = ?", slug, enum.ProductPublished).
+		First(&product).Error
 	return product, err
 }
 

@@ -3,7 +3,9 @@ package main
 import (
 	"animcommerce/backend/config"
 	"animcommerce/backend/database"
+	"animcommerce/backend/helper"
 	"animcommerce/backend/routes"
+	"log"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -12,9 +14,10 @@ import (
 )
 
 func main() {
-	err := godotenv.Load("../.env")
-	if err != nil {
-		panic("Cannot load env")
+	_ = godotenv.Load("../.env", ".env")
+
+	if err := helper.ValidateJWTConfig(); err != nil {
+		log.Fatal(err)
 	}
 
 	db := config.ConnectDB()
@@ -51,5 +54,7 @@ func main() {
 
 	routes.SetupRoutes(r, db, cld)
 
-	r.Run(":8080")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal(err)
+	}
 }

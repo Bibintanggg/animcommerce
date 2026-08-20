@@ -11,6 +11,7 @@ import (
 	"animcommerce/backend/repository"
 	"animcommerce/backend/service"
 	"animcommerce/backend/storage/images"
+	"time"
 
 	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/gin-gonic/gin"
@@ -19,8 +20,6 @@ import (
 
 func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 	storage := images.NewCloudinaryStorage(cld)
-
-	r.Static("/storage", "./storage")
 
 	loginRepository := repository.NewLoginRepository(db)
 	loginService := service.NewLoginService(loginRepository)
@@ -69,20 +68,21 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 
 	api := r.Group("/api")
 	{
-		publicRoute := public.NewPublicRoute(api, loginHandler, registerHandler)
+		publicAPI := api.Group("")
+		publicAPI.Use(middleware.RateLimit(10, 1*time.Minute))
+		publicRoute := public.NewPublicRoute(publicAPI, loginHandler, registerHandler)
 		publicRoute.RegisterLoginRoute()
 
 		productRoute := customer.NewProductRoute(api, productHandler)
 		productRoute.Register()
 
 		auth := api.Group("/")
-		auth.Use(middleware.AuthMiddleware())
+		auth.Use(middleware.AuthMiddleware(db))
 		auth.GET("/me", userHandler.Me)
 
 		reviewRoute := customer.NewReviewRoute(api, auth, reviewHandler)
 		reviewRoute.Register()
 
-		auth.Use(middleware.AuthMiddleware())
 		{
 			cartRoute := customer.NewCartRoute(auth, cartHandler)
 			cartRoute.Register()
@@ -92,7 +92,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 
 			adminGroup := api.Group("/admin")
 			adminGroup.Use(
-				middleware.AuthMiddleware(),
+				middleware.AuthMiddleware(db),
 				middleware.RoleMiddleware(
 					enum.AdminRole,
 					enum.SuperRole,
@@ -105,7 +105,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 
 			superadminGroup := api.Group("/superadmin")
 			superadminGroup.Use(
-				middleware.AuthMiddleware(),
+				middleware.AuthMiddleware(db),
 				middleware.RoleMiddleware(
 					enum.SuperRole,
 				),
