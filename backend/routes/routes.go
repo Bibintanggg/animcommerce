@@ -49,6 +49,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 	)
 	cartHandler := handler.NewCartHandler(cartService)
 
+	wishlistRepository := repository.NewWishlistRepository(db)
+	wishlistService := service.NewWishlistService(wishlistRepository, productRepository)
+	wishlistHandler := handler.NewWishlistHandler(wishlistService)
+
 	orderRepository := repository.NewOrderRepository(db)
 	invoiceService := service.NewInvoiceService(orderRepository, db)
 	orderItemRepository := repository.NewOrderItemRepository(db)
@@ -86,6 +90,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 		{
 			cartRoute := customer.NewCartRoute(auth, cartHandler)
 			cartRoute.Register()
+
+			wishlistRoute := customer.NewWishlistRoute(auth, wishlistHandler)
+			wishlistRoute.Register()
 
 			orderRoute := customer.NewOrdersRoute(auth, orderHandler)
 			orderRoute.Register()
