@@ -43,7 +43,7 @@ func (r *productRepository) FindAll(filter dto.ProductFilter) ([]models.Product,
 		products []models.Product
 		total    int64
 	)
-	query := r.db.Model(&models.Product{}).Preload("User").Preload("Discounts").Preload("Size")
+	query := r.db.Model(&models.Product{}).Preload("User").Preload("Discounts").Preload("Size").Preload("Reviews")
 
 	if filter.Search != "" {
 		query = query.Where("title LIKE ?", "%"+filter.Search+"%")
