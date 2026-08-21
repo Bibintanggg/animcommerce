@@ -3,10 +3,10 @@ package handler
 import (
 	"animcommerce/backend/dto"
 	"animcommerce/backend/service"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type RegisterHandler struct {
@@ -26,28 +26,26 @@ func (h *RegisterHandler) Register(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
+			"message": "Data register tidak valid",
 		})
 		return
 	}
 
-	err := h.service.Register(req)
+	if err := h.service.Register(req); err != nil {
+		if errors.Is(err, service.ErrEmailAlreadyRegistered) {
+			c.JSON(http.StatusConflict, gin.H{
+				"message": "Email sudah terdaftar",
+			})
+			return
+		}
 
-	if err == gorm.ErrDuplicatedKey {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Email already exists",
-		})
-		return
-	}
-
-	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
+			"message": "Gagal membuat akun",
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Register success",
+		"message": "Akun berhasil dibuat",
 	})
 }

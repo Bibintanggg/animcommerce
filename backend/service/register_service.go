@@ -5,10 +5,14 @@ import (
 	"animcommerce/backend/models"
 	"animcommerce/backend/models/enum"
 	"animcommerce/backend/repository"
+	"errors"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+var ErrEmailAlreadyRegistered = errors.New("email already registered")
 
 type RegisterService interface {
 	Register(req dto.RegisterRequest) error
@@ -27,11 +31,17 @@ func NewRegisterService(repo repository.RegisterRepository) RegisterService {
 func (s *registerService) Register(
 	req dto.RegisterRequest,
 ) error {
+	name := strings.TrimSpace(req.Name)
+	email := strings.ToLower(strings.TrimSpace(req.Email))
 
 	_, err := s.repo.FindByEmail(req.Email)
 
 	if err == nil {
-		return gorm.ErrDuplicatedKey
+		return ErrEmailAlreadyRegistered
+	}
+
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword(
@@ -44,8 +54,8 @@ func (s *registerService) Register(
 	}
 
 	user := models.User{
-		Name:     req.Name,
-		Email:    req.Email,
+		Name:     name,
+		Email:    email,
 		Password: string(hashedPassword),
 
 		Role: enum.CustomerRole,
