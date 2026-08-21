@@ -1,17 +1,32 @@
 "use client";
 
+import { addToCart } from "@/services/cart.service";
 import { getHeroBanner } from "@/services/product.service";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Boxes, Gem, Shirt, Ticket } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import SuccessModal from "../SuccessModal";
+import ErrorModal from "../ErrorModal";
+import axios from "axios";
+
+interface AddToCartVariables {
+  productId: number;
+  productTitle: string;
+}
 
 export default function HeroSection() {
+  const router = useRouter();
   const { data, isLoading, error } = useQuery({
     queryKey: ["hero-products"],
-    queryFn: getHeroBanner
-  })
+    queryFn: getHeroBanner,
+  });
   const [activeIndex, setActiveIndex] = useState(0);
+  const queryClient = useQueryClient();
+  const [cartSuccessModal, setCartSuccessModal] = useState(false);
+  const [cartErrorModal, setCartErrorModal] = useState(false);
+  const [cartMessage, setCartMessage] = useState("");
 
   useEffect(() => {
     if (!data || data.length <= 1) return;
@@ -23,6 +38,72 @@ export default function HeroSection() {
     return () => clearInterval(interval);
   }, [data]);
 
+  const addToCartMutation = useMutation({
+    mutationFn: ({ productId }: AddToCartVariables) =>
+      addToCart({
+        product_id: productId,
+        quantity: 1,
+      }),
+
+    onSuccess: async (_response, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["get-cart"],
+      });
+
+      window.dispatchEvent(new Event("cart-updated"));
+
+      setCartMessage(
+        `${variables.productTitle} berhasil ditambahkan ke keranjang.`,
+      );
+
+      setCartSuccessModal(true);
+    },
+
+    onError: (error: unknown) => {
+      let message = "Terjadi kesalahan. Silakan coba lagi.";
+
+      if (
+        axios.isAxiosError<{
+          message?: string;
+        }>(error)
+      ) {
+        const status = error.response?.status;
+        const serverMessage = error.response?.data?.message;
+
+        if (status === 401) {
+          message =
+            "Silakan login terlebih dahulu untuk menambahkan produk ke keranjang.";
+        } else if (status === 400) {
+          message =
+            serverMessage ?? "Produk tidak dapat ditambahkan ke keranjang.";
+        } else if (status === 404) {
+          message = "Produk tidak ditemukan.";
+        } else if (status === 409) {
+          message =
+            serverMessage ??
+            "Jumlah produk di keranjang sudah mencapai batas stok.";
+        } else if (status === 422) {
+          message = serverMessage ?? "Data produk tidak valid.";
+        } else if (status === 500) {
+          message = "Terjadi kesalahan pada server.";
+        } else if (!error.response) {
+          message = "Tidak dapat terhubung ke server.";
+        } else {
+          message = serverMessage ?? "Gagal menambahkan produk ke keranjang.";
+        }
+      }
+
+      setCartMessage(message);
+      setCartErrorModal(true);
+    },
+  });
+
+  const handleAddToCart = (productId: number, productTitle: string) => {
+    addToCartMutation.mutate({
+      productId,
+      productTitle,
+    });
+  };
   const categories = [
     {
       name: "Figure",
@@ -142,19 +223,23 @@ export default function HeroSection() {
                             transition={{ delay: 0.4, duration: 0.5 }}
                             className="flex flex-wrap items-center gap-4"
                           >
-                            <a
-                              href="#shop"
+                            <button
+                              onClick={() =>
+                                router.push(`/products/${product.slug}`)
+                              }
                               className="inline-flex items-center gap-2.5 bg-white text-[#111] px-6 py-3.5 text-sm font-medium tracking-wide hover:bg-[#BC002D] hover:text-white transition-colors duration-300"
                             >
                               Shop the Drop
                               <ArrowRight size={15} strokeWidth={2} />
-                            </a>
-                            <a
-                              href="#details"
+                            </button>
+                            <button
+                              onClick={() =>
+                                router.push(`/products/${product.slug}#details`)
+                              }
                               className="text-sm text-white/80 hover:text-white transition-colors underline underline-offset-4 decoration-white/40 hover:decoration-white"
                             >
                               View Details
-                            </a>
+                            </button>
                           </motion.div>
                         </div>
                       </div>
@@ -184,12 +269,33 @@ export default function HeroSection() {
                           </p>
 
                           <p className="text-[#111] text-lg font-medium">
-                            Rp {product.price}
+                            Rp {Number(product.price).toLocaleString("id-ID")}
                           </p>
                         </div>
 
-                        <button className="px-5 py-3 border border-[#111] text-[#111] text-sm font-medium hover:bg-[#111] hover:text-white transition-colors duration-300">
-                          Add to Cart
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleAddToCart(product.id, product.title)
+                          }
+                          disabled={
+                            addToCartMutation.isPending || product.stock <= 0
+                          }
+                          className="
+    px-5 py-3
+    border border-[#111]
+    text-[#111] text-sm font-medium
+    hover:bg-[#111] hover:text-white
+    disabled:cursor-not-allowed
+    disabled:opacity-50
+    transition-colors duration-300
+  "
+                        >
+                          {product.stock <= 0
+                            ? "Out of Stock"
+                            : addToCartMutation.isPending
+                              ? "Adding..."
+                              : "Add to Cart"}
                         </button>
                       </div>
                     </motion.div>
@@ -209,9 +315,7 @@ export default function HeroSection() {
         >
           {/* Soft floating container */}
           <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-2 lg:p-2.5 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.12)] border border-[#E8E6E1]">
-
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-2.5">
-
               {categories.map((cat, i) => {
                 const Icon = cat.icon;
                 return (
@@ -242,7 +346,11 @@ export default function HeroSection() {
                         className="w-9 h-9 lg:w-10 lg:h-10 rounded-full bg-white flex items-center justify-center shadow-sm
                          group-hover:scale-110 transition-transform duration-400"
                       >
-                        <Icon size={15} strokeWidth={2.2} style={{ color: cat.accent }} />
+                        <Icon
+                          size={15}
+                          strokeWidth={2.2}
+                          style={{ color: cat.accent }}
+                        />
                       </div>
                       <span
                         className="text-[10px] font-medium tracking-widest opacity-40"
@@ -271,7 +379,8 @@ export default function HeroSection() {
                 );
               })}
 
-              <a href="#promo"
+              <a
+                href="#promo"
                 className="group relative flex flex-col items-center justify-center py-6 lg:py-7 overflow-hidden
               bg-gradient-to-br from-[#D8002F] via-[#BC002D] to-[#8E0022] text-white"
               >
@@ -291,7 +400,11 @@ export default function HeroSection() {
                   fill="none"
                   className="absolute top-2.5 right-3 w-3.5 h-3.5 text-white/70"
                   animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.1, 0.8] }}
-                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{
+                    duration: 2.2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
                 >
                   <path
                     d="M12 2 L13.8 9.2 L21 11 L13.8 12.8 L12 20 L10.2 12.8 L3 11 L10.2 9.2 Z"
@@ -305,7 +418,12 @@ export default function HeroSection() {
                   fill="none"
                   className="absolute bottom-3 left-3 w-2.5 h-2.5 text-white/50"
                   animate={{ opacity: [0.2, 0.9, 0.2], scale: [0.7, 1, 0.7] }}
-                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+                  transition={{
+                    duration: 2.2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 0.8,
+                  }}
                 >
                   <path
                     d="M12 2 L13.8 9.2 L21 11 L13.8 12.8 L12 20 L10.2 12.8 L3 11 L10.2 9.2 Z"
@@ -317,13 +435,21 @@ export default function HeroSection() {
                 <motion.div
                   className="absolute -top-6 -right-6 w-16 h-16 rounded-full bg-white/10 blur-xl"
                   animate={{ scale: [1, 1.3, 1] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
                 />
 
                 {/* Icon with subtle bounce */}
                 <motion.div
                   animate={{ rotate: [0, -8, 8, 0] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{
+                    duration: 2.5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
                   className="relative mb-2"
                 >
                   <Ticket size={20} strokeWidth={1.8} className="text-white" />
@@ -337,10 +463,28 @@ export default function HeroSection() {
                 </span>
               </a>
             </div>
-
           </div>
         </motion.div>
-      </div >
-    </section >
+
+        <SuccessModal
+          isOpen={cartSuccessModal}
+          title="Berhasil ditambahkan"
+          subtitle={cartMessage}
+          buttonText="Lihat Keranjang"
+          onClose={() => {
+            setCartSuccessModal(false);
+            router.push("/cart");
+          }}
+        />
+
+        <ErrorModal
+          isOpen={cartErrorModal}
+          title="Gagal menambahkan produk"
+          subtitle={cartMessage}
+          buttonText="Tutup"
+          onClose={() => setCartErrorModal(false)}
+        />
+      </div>
+    </section>
   );
 }

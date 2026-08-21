@@ -11,12 +11,12 @@ import { LoginRequest } from "@/types/auth";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
-
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const router = useRouter();
 
   const emailId = useId();
@@ -27,9 +27,9 @@ export default function Login() {
     mutationFn: (data: LoginRequest) => login(data),
     onSuccess: (res) => {
       localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user))
+      localStorage.setItem("user", JSON.stringify(res.data.user));
 
-      document.cookie = `role=${res.data.user.role}; path=/`
+      document.cookie = `role=${res.data.user.role}; path=/`;
 
       const role = res.data.user.role;
 
@@ -44,13 +44,34 @@ export default function Login() {
     onError: (err: any) => {
       console.log("STATUS:", err.response?.status);
       console.log("DATA:", err.response?.data);
-    }
+      setLoginError("Email atau password salah");
+    },
   });
 
   const isLoading = loginMutation.isPending;
 
   const handleLogin = () => {
-    loginMutation.mutate({ email, password });
+    setLoginError("");
+
+    if (!email.trim()) {
+      setLoginError("Email wajib diisi");
+      return;
+    }
+
+    if (!email.includes("@")) {
+      setLoginError("Format email tidak valid");
+      return;
+    }
+
+    if (!password) {
+      setLoginError("Password wajib diisi");
+      return;
+    }
+
+    loginMutation.mutate({
+      email: email.trim().toLowerCase(),
+      password,
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -59,10 +80,8 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex bg-[#F8F7F5]">
-
       {/* ── LEFT: Visual Panel ─────────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-[#111111] flex-col justify-between">
-
         {/* Seigaiha pattern background — tiled across full panel */}
         <div className="absolute inset-0 pointer-events-none" aria-hidden>
           <div
@@ -106,9 +125,18 @@ export default function Login() {
           <div className="relative w-full flex justify-center mb-[-2rem]">
             <svg viewBox="0 0 400 180" className="w-80 opacity-20" fill="white">
               <path d="M200 10 L320 160 L80 160 Z" />
-              <path d="M200 10 L250 70 L200 65 L150 70 Z" fill="rgba(255,255,255,0.4)" />
+              <path
+                d="M200 10 L250 70 L200 65 L150 70 Z"
+                fill="rgba(255,255,255,0.4)"
+              />
               {/* Snow cap */}
-              <ellipse cx="200" cy="130" rx="240" ry="40" fill="rgba(255,255,255,0.03)" />
+              <ellipse
+                cx="200"
+                cy="130"
+                rx="240"
+                ry="40"
+                fill="rgba(255,255,255,0.03)"
+              />
             </svg>
           </div>
 
@@ -122,7 +150,9 @@ export default function Login() {
           {/* Thin horizontal rule with Japanese character */}
           <div className="flex items-center gap-4 mt-8">
             <div className="h-px w-16 bg-white/20" />
-            <span className="text-white/30 text-xs tracking-[0.3em] font-light">京都</span>
+            <span className="text-white/30 text-xs tracking-[0.3em] font-light">
+              京都
+            </span>
             <div className="h-px w-16 bg-white/20" />
           </div>
         </div>
@@ -133,7 +163,8 @@ export default function Login() {
             Japanese Premium
           </p>
           <p className="text-white/80 text-lg font-light leading-snug">
-            Crafted with intention,<br />
+            Crafted with intention,
+            <br />
             <span className="text-[#BC002D]">delivered with care.</span>
           </p>
           {/* Bottom decorative line */}
@@ -152,7 +183,6 @@ export default function Login() {
       {/* ── RIGHT: Login Form ──────────────────────────────────────────────── */}
       <div className="flex-1 lg:w-1/2 flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md space-y-8">
-
           {/* Mobile brand mark */}
           <div className="flex lg:hidden items-center gap-2 justify-center">
             <div className="w-6 h-6 rounded-full border border-[#BC002D]/60 flex items-center justify-center">
@@ -192,6 +222,18 @@ export default function Login() {
           >
             {/* Subtle top accent line */}
             <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[#BC002D]/30 to-transparent rounded-full" />
+            {loginError && (
+              <div
+                role="alert"
+                className="
+      rounded-xl border border-red-200
+      bg-red-50 px-4 py-3
+      text-sm text-red-600
+    "
+              >
+                {loginError}
+              </div>
+            )}
 
             {/* Email */}
             <InputField
@@ -199,33 +241,44 @@ export default function Login() {
               label="Email"
               type="email"
               value={email}
-              onChange={setEmail}
+              onChange={(value) => {
+                setEmail(value);
+                setLoginError("");
+              }}
               placeholder="you@example.com"
               autoComplete="email"
               icon={<Mail size={16} />}
             />
 
             {/* Password */}
-            <InputField
-              id={passwordId}
-              label="Password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={setPassword}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              icon={<Lock size={16} />}
-              rightElement={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="text-gray-400 hover:text-[#BC002D] transition-colors duration-150 focus:outline-none"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              }
-            />
+            <div className="flex flex-col gap-2">
+              <InputField
+                id={passwordId}
+                label="Password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(value) => setPassword(value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                icon={<Lock size={16} />}
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="text-gray-400 hover:text-[#BC002D] transition-colors duration-150 focus:outline-none"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                }
+              />
+
+              <p className="text-sm text-gray-500">
+                *Minimal password 8 karakter
+              </p>
+            </div>
 
             {/* Remember me + Forgot password */}
             <div className="flex items-center justify-between pt-1">
@@ -251,8 +304,18 @@ export default function Login() {
                     "
                   >
                     {rememberMe && (
-                      <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none">
-                        <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        className="w-2.5 h-2.5 text-white"
+                        viewBox="0 0 10 10"
+                        fill="none"
+                      >
+                        <path
+                          d="M1.5 5L4 7.5L8.5 2.5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     )}
                   </div>
@@ -288,9 +351,26 @@ export default function Login() {
               "
             >
               {isLoading ? (
-                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                  <path className="opacity-75" d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                <svg
+                  className="w-4 h-4 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                  />
+                  <path
+                    className="opacity-75"
+                    d="M4 12a8 8 0 018-8"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
                 </svg>
               ) : (
                 <>
@@ -335,6 +415,7 @@ export default function Login() {
             Don&apos;t have an account?{" "}
             <button
               type="button"
+              onClick={() => router.push("/register")}
               className="text-[#111111] font-semibold hover:text-[#BC002D] transition-colors duration-200 focus:outline-none"
             >
               Sign Up

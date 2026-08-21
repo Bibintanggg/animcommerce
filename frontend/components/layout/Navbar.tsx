@@ -10,17 +10,18 @@ import { useQuery } from "@tanstack/react-query";
 import { getCart } from "@/services/cart.service";
 
 export default function Navbar() {
-  const router = useRouter()
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [cartAnimating, setCartAnimating] = useState(false);
+  const [wishlistAnimating, setWishlistAnimating] = useState(false);
 
   const { data: cart = [] } = useQuery({
-    queryKey: ['get-cart'],
+    queryKey: ["get-cart"],
     queryFn: getCart,
-  })
+  });
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -28,56 +29,53 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Cart animation
   useEffect(() => {
     const handleCartUpdated = () => {
-      setCartAnimating(true)
-      const timer = setTimeout(() => {
-        setCartAnimating(false)
-      }, 600)
-      return () => clearTimeout(timer)
-    }
+      setCartAnimating(true);
+      const timer = setTimeout(() => setCartAnimating(false), 600);
+      return () => clearTimeout(timer);
+    };
 
     window.addEventListener("cart-updated", handleCartUpdated);
+    return () => window.removeEventListener("cart-updated", handleCartUpdated);
+  }, []);
 
-    return () => {
-      window.removeEventListener("cart-updated", handleCartUpdated);
+  // Wishlist animation
+  useEffect(() => {
+    const handleWishlistUpdated = () => {
+      setWishlistAnimating(true);
+      const timer = setTimeout(() => setWishlistAnimating(false), 700);
+      return () => clearTimeout(timer);
     };
-  })
 
-  // useEffect(() => {
-
-  //   const storedUser = localStorage.getItem("user");
-
-  //   if (storedUser) {
-  //     const user = JSON.parse(storedUser);
-
-  //     setIsLogin(true);
-  //     setUserRole(user.role);
-  //   }
-  // }, []);
+    window.addEventListener("wishlist-updated", handleWishlistUpdated);
+    return () =>
+      window.removeEventListener("wishlist-updated", handleWishlistUpdated);
+  }, []);
 
   useEffect(() => {
     const checkSession = async () => {
-      const token = localStorage.getItem("token")
+      const token = localStorage.getItem("token");
 
       if (!token) {
-        setIsLogin(false)
-        setUserRole(null)
-        return
+        setIsLogin(false);
+        setUserRole(null);
+        return;
       }
 
       try {
-        const user = await getMe()
-        setIsLogin(true)
-        setUserRole(user.role)
+        const user = await getMe();
+        setIsLogin(true);
+        setUserRole(user.role);
       } catch {
-        setIsLogin(false)
-        setUserRole(null)
+        setIsLogin(false);
+        setUserRole(null);
       }
-    }
+    };
 
-    checkSession()
-  }, [])
+    checkSession();
+  }, []);
 
   const navLinks = [
     { href: "/#featured", label: "Collection" },
@@ -88,14 +86,14 @@ export default function Navbar() {
 
     ...(userRole === "admin" || userRole === "superadmin"
       ? [
-        {
-          href:
-            userRole === "superadmin"
-              ? "/superadmin/dashboard"
-              : "/admin/dashboard",
-          label: "Dashboard",
-        },
-      ]
+          {
+            href:
+              userRole === "superadmin"
+                ? "/superadmin/dashboard"
+                : "/admin/dashboard",
+            label: "Dashboard",
+          },
+        ]
       : []),
   ];
 
@@ -106,7 +104,7 @@ export default function Navbar() {
     router.push("/");
   };
 
-  const cartCount = cart.reduce((total, item) => total + item.quantity, 0)
+  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
   return (
     <>
@@ -114,10 +112,11 @@ export default function Navbar() {
         initial={{ y: -80 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
-          ? "bg-white/95 backdrop-blur-md border-b border-[#E5E3DF]"
-          : "bg-transparent"
-          }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+          scrolled
+            ? "bg-white/95 backdrop-blur-md border-b border-[#E5E3DF]"
+            : "bg-transparent"
+        }`}
       >
         <div className="max-w-[1440px] mx-auto px-6 lg:px-12">
           <div className="flex items-center justify-between h-16 lg:h-20">
@@ -144,7 +143,6 @@ export default function Navbar() {
                   className="text-[#5C5C5C] hover:text-[#1A1A1A] text-sm tracking-wide transition-colors duration-200 relative group"
                 >
                   {link.label}
-
                   <span className="absolute -bottom-1 left-0 w-0 h-px bg-[#BC002D] group-hover:w-full transition-all duration-300" />
                 </Link>
               ))}
@@ -175,12 +173,56 @@ export default function Navbar() {
               >
                 <Search size={18} strokeWidth={1.5} />
               </button>
-              <button onClick={() => router.push("/wishlist")}
+
+              {/* Wishlist */}
+              <button
+                onClick={() => router.push("/wishlist")}
                 aria-label="Wishlist"
-                className="p-2 text-[#5C5C5C] hover:text-[#BC002D] transition-colors duration-200 hidden sm:block"
+                className="relative p-2 text-[#5C5C5C] hover:text-[#BC002D] transition-colors duration-200 hidden sm:block"
               >
-                <Heart size={18} strokeWidth={1.5} />
+                <motion.div
+                  animate={
+                    wishlistAnimating
+                      ? {
+                          scale: [1, 1.35, 0.9, 1.2, 1],
+                          rotate: [0, -8, 8, -4, 0],
+                        }
+                      : {
+                          scale: 1,
+                          rotate: 0,
+                        }
+                  }
+                  transition={{
+                    duration: 0.7,
+                    ease: "easeOut",
+                  }}
+                >
+                  <Heart
+                    size={18}
+                    strokeWidth={1.5}
+                    className={
+                      wishlistAnimating
+                        ? "fill-[#BC002D] text-[#BC002D]"
+                        : "fill-transparent"
+                    }
+                  />
+                </motion.div>
+
+                {/* Optional: small pulse ring saat animasi */}
+                <AnimatePresence>
+                  {wishlistAnimating && (
+                    <motion.span
+                      initial={{ scale: 0.6, opacity: 0.6 }}
+                      animate={{ scale: 2.2, opacity: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                      className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-[#BC002D]/30 pointer-events-none"
+                    />
+                  )}
+                </AnimatePresence>
               </button>
+
+              {/* Cart */}
               <Link
                 href="/cart"
                 aria-label={`Cart (${cartCount} items)`}
@@ -190,13 +232,13 @@ export default function Navbar() {
                   animate={
                     cartAnimating
                       ? {
-                        rotate: [0, -12, 12, -8, 8, 0],
-                        y: [0, -3, 0, -2, 0],
-                      }
+                          rotate: [0, -12, 12, -8, 8, 0],
+                          y: [0, -3, 0, -2, 0],
+                        }
                       : {
-                        rotate: 0,
-                        y: 0,
-                      }
+                          rotate: 0,
+                          y: 0,
+                        }
                   }
                   transition={{
                     duration: 0.6,
@@ -211,9 +253,7 @@ export default function Navbar() {
                     <motion.span
                       key={cartCount}
                       initial={{ scale: 0 }}
-                      animate={{
-                        scale: 1,
-                      }}
+                      animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
                       transition={{
                         type: "spring",
@@ -227,6 +267,7 @@ export default function Navbar() {
                   )}
                 </AnimatePresence>
               </Link>
+
               <button
                 className="lg:hidden p-2 text-[#1A1A1A]"
                 onClick={() => setMenuOpen(true)}
@@ -265,8 +306,9 @@ export default function Navbar() {
                 </button>
               </div>
               <nav className="flex flex-col gap-1 p-6">
-                {navLinks.map((link, i) => (
+                {navLinks.map((link) => (
                   <Link
+                    key={link.href}
                     href={link.href}
                     className="text-[#5C5C5C] hover:text-[#1A1A1A] text-sm tracking-wide transition-colors duration-200 relative group"
                   >
