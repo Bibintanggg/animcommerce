@@ -23,6 +23,8 @@ func main() {
 	db := config.ConnectDB()
 	database.MigrateDB(db)
 
+	log.Println("Database migration berhasil")
+
 	cld := config.NewCloudinaryClient()
 
 	r := gin.Default()

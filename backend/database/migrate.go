@@ -12,6 +12,7 @@ func MigrateDB(db *gorm.DB) {
 		&models.OrderItem{},
 		&models.OrderProduct{},
 		&models.Payment{},
+		&models.Wishlist{},
 		&models.Product{},
 		&models.User{},
 		&models.UserAddress{},
@@ -19,6 +20,5 @@ func MigrateDB(db *gorm.DB) {
 		&models.Discount{},
 		&models.Review{},
 		&models.ProductSize{},
-		&models.Wishlist{},
 	)
 }
