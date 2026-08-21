@@ -18,10 +18,86 @@ import { Discount, DiscountFormData } from "@/types/product-discount";
 import { Review } from "@/types/product-review";
 
 interface ProductFormProps {
-    url: string
+    url: string;
     mode?: "create" | "edit";
     product?: Product | null;
-    method?: "PUT" | "POST";
+    onSuccess?: (product: Product) => void;
+}
+
+interface ProductFormData {
+    title: string;
+    thumbnail: string;
+    slug: string;
+    description: string;
+    price: number;
+    stock: number;
+    is_active: ProductStatus;
+    category: ProductCategory;
+    is_featured: boolean;
+    size: string[];
+    discount: DiscountFormData;
+}
+
+function createEmptyDiscount(): DiscountFormData {
+    return {
+        code: "",
+        type: "percentage",
+        value: 0,
+        min_purchase: 0,
+        max_discount: 0,
+        usage_limit: 0,
+        start_at: null,
+        end_at: null,
+        is_active: true,
+    };
+}
+
+function createEmptyFormData(): ProductFormData {
+    return {
+        title: "",
+        thumbnail: "",
+        slug: "",
+        description: "",
+        price: 0,
+        stock: 0,
+        is_active: ProductStatus.ProductDraft,
+        category: ProductCategory.FigureCategry,
+        is_featured: false,
+        size: [],
+        discount: createEmptyDiscount(),
+    };
+}
+
+function createEditFormData(product: Product): ProductFormData {
+    const discount = product.discounts?.[0];
+
+    return {
+        title: product.title ?? "",
+        thumbnail: product.thumbnail ?? "",
+        slug: product.slug ?? "",
+        description: product.description ?? "",
+        price: Number(product.price) || 0,
+        stock: Number(product.stock) || 0,
+        is_active: product.is_active ?? ProductStatus.ProductDraft,
+        category: product.category ?? ProductCategory.FigureCategry,
+        is_featured: Boolean(product.is_featured),
+        size: product.size?.map((item) => item.size) ?? [],
+
+        // Ambil discount lama saat edit
+        discount: discount
+            ? {
+                code: discount.code ?? "",
+                type: discount.type ?? "percentage",
+                value: Number(discount.value) || 0,
+                min_purchase: Number(discount.min_purchase) || 0,
+                max_discount: Number(discount.max_discount) || 0,
+                usage_limit: Number(discount.usage_limit) || 0,
+                start_at: discount.start_at ?? null,
+                end_at: discount.end_at ?? null,
+                is_active: discount.is_active ?? true,
+            }
+            : createEmptyDiscount(),
+    };
 }
 
 function generateSlug(title: string) {
@@ -33,91 +109,27 @@ function generateSlug(title: string) {
         .replace(/-+/g, "-");
 }
 
-export function ProductForm({ url, mode = "create", product, method }: ProductFormProps) {
-    const defaultDiscount: DiscountFormData = {
-        code: "",
-        type: "percentage",
-        value: 0,
-        min_purchase: 0,
-        max_discount: 0,
-        usage_limit: 0,
-        start_at: null,
-        end_at: null,
-        is_active: true,
-    };
+export function ProductForm({ url, mode = "create", product, onSuccess }: ProductFormProps) {
 
-    const [formData, setFormData] = useState<{
-        title: string,
-        thumbnail: string,
-        slug: string,
-        description: string,
-        price: number,
-        stock: number,
-        is_active: ProductStatus,
-        category: ProductCategory,
-        is_featured: boolean,
-        size: string[],
-        discount: DiscountFormData,
-    }>({
-        title: "",
-        thumbnail: "",
-        slug: "",
-        description: "",
-        price: 0,
-        stock: 0,
-        is_active: ProductStatus.ProductDraft,
-        category: ProductCategory.FigureCategry,
-        is_featured: false,
-        size: [],
-        discount: defaultDiscount,
-    })
+    const [formData, setFormData] = useState<ProductFormData>(() =>
+        mode === "edit" && product
+            ? createEditFormData(product)
+            : createEmptyFormData()
+    );
 
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-    const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+    const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
+        mode === "edit" ? product?.thumbnail || null : null
+    );
+
     const [isDragging, setIsDragging] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const queryClient = useQueryClient()
+    const queryClient = useQueryClient();
 
-    useEffect(() => {
-        if (mode == "edit" && product) {
-            setFormData({
-                title: product.title,
-                thumbnail: product.thumbnail,
-                slug: product.slug,
-                description: product.description,
-                price: product.price,
-                stock: product.stock,
-                is_active: product.is_active,
-                category: product.category,
-                is_featured: product.is_featured,
-                size: product.size?.map((item) => item.size) ?? [],
-                discount: defaultDiscount,
-            });
-            setThumbnailPreview(product.thumbnail || null);
-            setThumbnailFile(null);
-        }
 
-        if (mode == "create") {
-            setFormData({
-                title: "",
-                thumbnail: "",
-                slug: "",
-                description: "",
-                price: 0,
-                stock: 0,
-                is_active: ProductStatus.ProductDraft,
-                category: ProductCategory.FigureCategry,
-                is_featured: false,
-                size: [],
-                discount: defaultDiscount
-            });
-            setThumbnailPreview(null);
-            setThumbnailFile(null);
-        }
-    }, [product?.id, mode])
 
     const handleTitleChange = (value: string) => {
         setFormData((prev) => ({
@@ -165,28 +177,6 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
-    const uploadThumbnail = async (file: File): Promise<string> => {
-        const token = localStorage.getItem("token");
-        const uploadForm = new FormData();
-        uploadForm.append("file", file);
-
-        const res = await fetch("/api/upload", {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-            body: uploadForm,
-        });
-
-        const result = await res.json();
-
-        if (!res.ok) {
-            throw new Error(result.message || "Gagal mengunggah gambar");
-        }
-
-        return result.url as string;
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -216,10 +206,14 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
             return;
         }
 
-        if (mode === "create" && !thumbnailFile) {
-            setError("Thumbnail wajib diunggah");
-            setIsLoading(false);
-            return;
+        if (mode === "create") {
+            setFormData(createEmptyFormData());
+            setThumbnailFile(null);
+            setThumbnailPreview(null);
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
         }
 
         try {
@@ -247,34 +241,21 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
             if (thumbnailFile) {
                 body.append("thumbnail", thumbnailFile);
             }
-
-            if (mode === "edit") {
-                await updateProduct(url, body);
-            } else {
-                await createProduct(url, body);
-            }
+            const savedProduct =
+                mode === "edit"
+                    ? await updateProduct(url, body)
+                    : await createProduct(url, body);
 
             await queryClient.invalidateQueries({
-                queryKey: ['products'],
-            })
+                queryKey: ["products"],
+            });
 
             gooeyToast.success(
-                mode == "edit" ? "Produk berhasil diperbarui" : "Produk berhasil ditambahkan"
-            )
+                mode === "edit"
+                    ? "Produk berhasil diperbarui"
+                    : "Produk berhasil ditambahkan"
+            );
 
-            setFormData({
-                title: "",
-                thumbnail: "",
-                slug: "",
-                description: "",
-                price: 0,
-                stock: 0,
-                is_active: ProductStatus.ProductDraft,
-                category: ProductCategory.FigureCategry,
-                is_featured: false,
-                size: [],
-                discount: defaultDiscount,
-            });
             setThumbnailFile(null);
             setThumbnailPreview(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -401,8 +382,8 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                                             }));
                                         }}
                                         className={`rounded-md border px-4 py-2 transition-colors ${formData.size.includes(size)
-                                                ? "border-primary bg-primary text-white"
-                                                : "border-border bg-background hover:bg-muted"
+                                            ? "border-primary bg-primary text-white"
+                                            : "border-border bg-background hover:bg-muted"
                                             }`}
                                     >
                                         {size}
@@ -657,13 +638,14 @@ export function ProductForm({ url, mode = "create", product, method }: ProductFo
                     )}
                 </div>
 
-                {isUploading && (
-                    <p className="text-xs text-gray-500">Mengunggah gambar...</p>
-                )}
             </div>
 
-            <Button className="w-full" type="submit" disabled={isLoading || isUploading}>
-                {isUploading ? "Mengunggah..." : isLoading ? "Menyimpan..." : "Simpan"}
+            <Button
+                className="w-full"
+                type="submit"
+                disabled={isLoading}
+            >
+                {isLoading ? "Menyimpan..." : "Simpan"}
             </Button>
         </form >
     );

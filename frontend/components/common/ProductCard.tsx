@@ -6,6 +6,10 @@ import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Product } from "@/types/product";
 import Link from "next/link";
+import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { addWishlistItem, getWishlist, removeWishlist } from "@/services/wishlist.service";
+import { useRouter } from "next/navigation";
+import { goeyToast } from "goey-toast";
 
 interface ProductCardProps {
   product: Product;
@@ -21,7 +25,39 @@ function formatPrice(price: number) {
 }
 
 export default function ProductCard({ product, variant = "default" }: ProductCardProps) {
-  const [isWished, setIsWished] = useState(false);
+  const router = useRouter()
+  const queryClient = useQueryClient()
+
+  const hasToken = typeof window !== "undefined" && Boolean(localStorage.getItem("token"))
+  const { data: wishlists = [] } = useQuery({
+    queryKey: ['get-wishlists'],
+    queryFn: getWishlist,
+    enabled: hasToken,
+    retry: false
+  })
+
+  const isWished = wishlists.some((wishlist) => wishlist.product_id === product.id)
+  const wishlistMutation = useMutation({
+    mutationFn: () => {
+      if (isWished) {
+        removeWishlist(product.id)
+      }
+      return addWishlistItem(product.id)
+    },
+
+    onSuccess: async () => {
+      goeyToast.success("Berhasil menambahkan wishlist!")
+      await queryClient.invalidateQueries({
+        queryKey: ['wishlist']
+      })
+    },
+
+    onError: (error) => {
+      goeyToast.error("Gagal menambahkan produk")
+      console.error("Gagal mengubah wishlist", error)
+    }
+  })
+
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const isOutOfStock = product.stock === 0;
@@ -50,10 +86,20 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
           )}
 
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsWished(!isWished);
-            }}
+            type="button"
+            disabled={wishlistMutation.isPending}
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+
+              if (!hasToken) {
+                router.push("/login")
+                return
+              }
+
+              wishlistMutation.mutate()
+            }
+            }
             className="absolute top-3 right-3 z-10 w-8 h-8 bg-white/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white"
           >
             <Heart
@@ -61,7 +107,9 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
               strokeWidth={1.5}
               className={cn(
                 "transition-colors duration-200",
-                isWished ? "fill-[#BC002D] text-[#BC002D]" : "text-[#1A1A1A]"
+                isWished
+                  ? "fill-[#BC002D] text-[#BC002D]"
+                  : "text-[#1A1A1A]",
               )}
             />
           </button>

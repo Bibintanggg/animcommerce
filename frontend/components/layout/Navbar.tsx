@@ -175,7 +175,7 @@ export default function Navbar() {
               >
                 <Search size={18} strokeWidth={1.5} />
               </button>
-              <button
+              <button onClick={() => router.push("/wishlist")}
                 aria-label="Wishlist"
                 className="p-2 text-[#5C5C5C] hover:text-[#BC002D] transition-colors duration-200 hidden sm:block"
               >

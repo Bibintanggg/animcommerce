@@ -124,8 +124,8 @@ export default function Products() {
   }, [search]);
 
   const handleEdit = (product: Product) => {
-    setOpenEditModal(true);
     setSelectedProduct(product);
+    setOpenEditModal(true);
   };
 
   const handleDelete = (product: Product) => {
@@ -239,8 +239,18 @@ export default function Products() {
             </Button>
           }
         >
-          <ProductForm url="http://localhost:8080/api/admin/products" />
-        </CreateModal>
+          {openEditModal && selectedProduct && (
+            <ProductForm
+              key={selectedProduct.id}
+              mode="edit"
+              product={selectedProduct}
+              url={`http://localhost:8080/api/admin/products/${selectedProduct.id}`}
+              onSuccess={() => {
+                setOpenEditModal(false);
+                setSelectedProduct(null);
+              }}
+            />
+          )}        </CreateModal>
       </div>
 
       {/* ===== STATS BAR ===== */}
@@ -642,7 +652,6 @@ export default function Products() {
                   mode="edit"
                   product={selectedProduct}
                   url={`http://localhost:8080/api/admin/products/${selectedProduct.id}`}
-                  method="PUT"
                 />
               )}
             </EditModal>
@@ -766,29 +775,29 @@ export default function Products() {
                     <div>
                       {product.discounts?.length
                         ? product.discounts.map((discount, index) =>
-                            discount?.code ? (
-                              <div
-                                key={discount.id ?? `${discount.code}-${index}`}
-                                className="flex items-center gap-2"
-                              >
-                                <span className="font-medium">
-                                  {discount.code} -
-                                </span>
-                                <span className="ml-2 text-sm text-muted-foreground">
-                                  {discount.type === "percentage"
-                                    ? `Diskon ${discount.value}%`
-                                    : `Potongan Rp ${discount.value.toLocaleString("id-ID")}`}
-                                </span>
-                              </div>
-                            ) : (
-                              <span
-                                key={index}
-                                className="text-sm text-muted-foreground"
-                              >
-                                Tidak ada diskon
+                          discount?.code ? (
+                            <div
+                              key={discount.id ?? `${discount.code}-${index}`}
+                              className="flex items-center gap-2"
+                            >
+                              <span className="font-medium">
+                                {discount.code} -
                               </span>
-                            ),
-                          )
+                              <span className="ml-2 text-sm text-muted-foreground">
+                                {discount.type === "percentage"
+                                  ? `Diskon ${discount.value}%`
+                                  : `Potongan Rp ${discount.value.toLocaleString("id-ID")}`}
+                              </span>
+                            </div>
+                          ) : (
+                            <span
+                              key={index}
+                              className="text-sm text-muted-foreground"
+                            >
+                              Tidak ada diskon
+                            </span>
+                          ),
+                        )
                         : "-"}
                     </div>
                   ),
