@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, Search, Menu, X, Heart } from "lucide-react";
+import { ShoppingBag, Menu, X, Heart, Package } from "lucide-react";
 import { getMe } from "@/services/auth.service";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getCart } from "@/services/cart.service";
+// import { getOrders } from "@/services/order.service";
+
+// ─── DUMMY: ganti ke false / hubungkan getOrders nanti ───
+const DUMMY_HAS_IN_TRANSIT = true;
+const DUMMY_IN_TRANSIT_COUNT = 2;
 
 export default function Navbar() {
   const router = useRouter();
@@ -23,13 +28,40 @@ export default function Navbar() {
     queryFn: getCart,
   });
 
+  // ─── Orders (sementara dummy) ───
+  // const { data: orders = [] } = useQuery({
+  //   queryKey: ["get-orders"],
+  //   queryFn: getOrders,
+  //   enabled: isLogin,
+  // });
+
+  // const hasInTransit = useMemo(
+  //   () =>
+  //     orders.some(
+  //       (o: { shipmentStatus?: string; orderStatus?: string }) =>
+  //         o.shipmentStatus === "transit" && o.orderStatus !== "cancelled"
+  //     ),
+  //   [orders]
+  // );
+
+  // const inTransitCount = useMemo(
+  //   () =>
+  //     orders.filter(
+  //       (o: { shipmentStatus?: string; orderStatus?: string }) =>
+  //         o.shipmentStatus === "transit" && o.orderStatus !== "cancelled"
+  //     ).length,
+  //   [orders]
+  // );
+
+  const hasInTransit = DUMMY_HAS_IN_TRANSIT;
+  const inTransitCount = DUMMY_IN_TRANSIT_COUNT;
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Cart animation
   useEffect(() => {
     const handleCartUpdated = () => {
       setCartAnimating(true);
@@ -41,7 +73,6 @@ export default function Navbar() {
     return () => window.removeEventListener("cart-updated", handleCartUpdated);
   }, []);
 
-  // Wishlist animation
   useEffect(() => {
     const handleWishlistUpdated = () => {
       setWishlistAnimating(true);
@@ -86,14 +117,14 @@ export default function Navbar() {
 
     ...(userRole === "admin" || userRole === "superadmin"
       ? [
-          {
-            href:
-              userRole === "superadmin"
-                ? "/superadmin/dashboard"
-                : "/admin/dashboard",
-            label: "Dashboard",
-          },
-        ]
+        {
+          href:
+            userRole === "superadmin"
+              ? "/superadmin/dashboard"
+              : "/admin/dashboard",
+          label: "Dashboard",
+        },
+      ]
       : []),
   ];
 
@@ -104,7 +135,10 @@ export default function Navbar() {
     router.push("/");
   };
 
-  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
+  const cartCount = cart.reduce(
+    (total: number, item: { quantity: number }) => total + item.quantity,
+    0
+  );
 
   return (
     <>
@@ -112,11 +146,10 @@ export default function Navbar() {
         initial={{ y: -80 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
             ? "bg-white/95 backdrop-blur-md border-b border-[#E5E3DF]"
             : "bg-transparent"
-        }`}
+          }`}
       >
         <div className="max-w-[1440px] mx-auto px-6 lg:px-12">
           <div className="flex items-center justify-between h-16 lg:h-20">
@@ -167,12 +200,77 @@ export default function Navbar() {
 
             {/* Actions */}
             <div className="flex items-center gap-4">
-              <button
-                aria-label="Search"
-                className="p-2 text-[#5C5C5C] hover:text-[#1A1A1A] transition-colors duration-200 hidden sm:block"
+              {/* Pesanan Saya */}
+              <Link
+                href="/orders"
+                aria-label={
+                  hasInTransit
+                    ? `Pesanan Saya (${inTransitCount} dalam perjalanan)`
+                    : "Pesanan Saya"
+                }
+                className={`relative p-2 transition-colors duration-200 hidden sm:block ${hasInTransit
+                    ? "text-[#BC002D]"
+                    : "text-[#5C5C5C] hover:text-[#BC002D]"
+                  }`}
               >
-                <Search size={18} strokeWidth={1.5} />
-              </button>
+                <motion.div
+                  animate={
+                    hasInTransit
+                      ? {
+                        y: [0, -3, 0],
+                        rotate: [0, -6, 6, 0],
+                      }
+                      : { y: 0, rotate: 0 }
+                  }
+                  transition={
+                    hasInTransit
+                      ? {
+                        duration: 1.6,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }
+                      : { duration: 0.2 }
+                  }
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <Package size={18} strokeWidth={1.5} />
+                </motion.div>
+
+                <AnimatePresence>
+                  {hasInTransit && (
+                    <motion.span
+                      key={inTransitCount}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 20,
+                      }}
+                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#BC002D] text-white text-[9px] font-semibold flex items-center justify-center leading-none"
+                    >
+                      {inTransitCount > 9 ? "9+" : inTransitCount}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                  {hasInTransit && (
+                    <motion.span
+                      initial={{ scale: 0.6, opacity: 0.5 }}
+                      animate={{ scale: 2.1, opacity: 0 }}
+                      transition={{
+                        duration: 1.4,
+                        repeat: Infinity,
+                        ease: "easeOut",
+                      }}
+                      className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-[#BC002D]/25 pointer-events-none"
+                    />
+                  )}
+                </AnimatePresence>
+              </Link>
 
               {/* Wishlist */}
               <button
@@ -184,18 +282,12 @@ export default function Navbar() {
                   animate={
                     wishlistAnimating
                       ? {
-                          scale: [1, 1.35, 0.9, 1.2, 1],
-                          rotate: [0, -8, 8, -4, 0],
-                        }
-                      : {
-                          scale: 1,
-                          rotate: 0,
-                        }
+                        scale: [1, 1.35, 0.9, 1.2, 1],
+                        rotate: [0, -8, 8, -4, 0],
+                      }
+                      : { scale: 1, rotate: 0 }
                   }
-                  transition={{
-                    duration: 0.7,
-                    ease: "easeOut",
-                  }}
+                  transition={{ duration: 0.7, ease: "easeOut" }}
                 >
                   <Heart
                     size={18}
@@ -208,7 +300,6 @@ export default function Navbar() {
                   />
                 </motion.div>
 
-                {/* Optional: small pulse ring saat animasi */}
                 <AnimatePresence>
                   {wishlistAnimating && (
                     <motion.span
@@ -232,18 +323,12 @@ export default function Navbar() {
                   animate={
                     cartAnimating
                       ? {
-                          rotate: [0, -12, 12, -8, 8, 0],
-                          y: [0, -3, 0, -2, 0],
-                        }
-                      : {
-                          rotate: 0,
-                          y: 0,
-                        }
+                        rotate: [0, -12, 12, -8, 8, 0],
+                        y: [0, -3, 0, -2, 0],
+                      }
+                      : { rotate: 0, y: 0 }
                   }
-                  transition={{
-                    duration: 0.6,
-                    ease: "easeOut",
-                  }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
                 >
                   <ShoppingBag size={18} strokeWidth={1.5} />
                 </motion.div>

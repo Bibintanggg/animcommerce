@@ -1,4 +1,5 @@
 import api from "@/lib/api"
+import { BuyNowPayload, BuyNowResponse, CheckoutPayload, CheckoutProductPayload, CheckoutResponse } from "@/types/checkout";
 import { OrderListResponse, OrderProduct } from "@/types/order"
 import { Product } from "@/types/product";
 
@@ -21,3 +22,14 @@ export const getOrders = async (
 
     return response.data;
 };
+
+export const checkoutCart = async (payload: CheckoutPayload): Promise<CheckoutResponse> => {
+    const response = await api.post<CheckoutResponse>("/orders/checkout", payload)
+    return response.data
+}
+
+export async function checkoutProduct(slug: string, payload: CheckoutProductPayload): Promise<CheckoutResponse> {
+  const response = await api.post<CheckoutResponse>(`/orders/checkout/product/${slug}`, payload);
+
+  return response.data;
+}

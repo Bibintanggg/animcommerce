@@ -9,6 +9,7 @@ import { ProductCategory } from "@/enums/product-category";
 import { Product } from "@/types/product";
 import { number } from "framer-motion";
 import { applyDiscount } from "@/services/product.service";
+import { useRouter } from "next/navigation";
 
 
 const CATEGORIES = [
@@ -18,10 +19,12 @@ const CATEGORIES = [
 ];
 
 export default function CartPage() {
+  const router = useRouter()
   const { data: cart = [], isLoading } = useQuery({
     queryKey: ['get-cart'],
     queryFn: getCart,
   })
+
 
   const { data: recommended = [] } = useQuery<Product[]>({
     queryKey: ['recommend'],
@@ -42,6 +45,7 @@ export default function CartPage() {
     discount: number;
   } | null>(null);
   const [promoError, setPromoError] = useState("");
+  const [errorMessage, setErrorMessage] = useState("")
 
   useEffect(() => {
     if (cart.length > 0) {
@@ -103,6 +107,20 @@ export default function CartPage() {
     } else {
       setSelectedIds(filteredCart.map((i) => i.id));
     }
+  };
+
+  const handleCheckout = () => {
+    if (selectedIds.length === 0) {
+      setErrorMessage("Pilih minimal 1 produk!");
+      return;
+    }
+
+    sessionStorage.setItem(
+      "checkout_cart_item_ids",
+      JSON.stringify(selectedIds),
+    );
+
+    router.push("/checkout");
   };
 
   const filteredCart = useMemo(() => {
@@ -575,10 +593,11 @@ export default function CartPage() {
                 </div>
 
                 <button
+                  onClick={handleCheckout}
                   disabled={selectedItems.length === 0}
                   className="w-full mt-6 h-12 rounded-2xl bg-black text-white text-sm font-medium hover:bg-gray-800 transition active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Checkout ({selectedItems.length})
+                  Checkout ({selectedItems.length} produk)
                 </button>
 
                 <p className="text-center text-[11px] text-gray-400 mt-3">

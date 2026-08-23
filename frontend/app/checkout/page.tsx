@@ -1,10 +1,20 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+    FormEvent,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
+import { useRouter } from "next/navigation";
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+} from "@tanstack/react-query";
 import axios from "axios";
 
+import { getCart } from "@/services/cart.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,14 +37,21 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
-import { getProductDetails } from "@/services/product.service";
-import { checkoutProduct } from "@/services/order.service";
-import { BuyNowAddress, BuyNowResult } from "@/types/checkout";
-
 import SuccessModal from "@/components/SuccessModal";
 import ErrorModal from "@/components/ErrorModal";
+import { checkoutCart } from "@/services/order.service";
 
-const initialAddress: BuyNowAddress = {
+interface CheckoutAddress {
+    receiver_name: string;
+    phone_number: string;
+    address_line: string;
+    province: string;
+    city: string;
+    district: string;
+    postal_code: string;
+}
+
+const initialAddress: CheckoutAddress = {
     receiver_name: "",
     phone_number: "",
     address_line: "",
@@ -52,41 +69,81 @@ function formatRupiah(value: number) {
     }).format(value);
 }
 
-export default function BuyPage() {
+export default function CartCheckoutPage() {
     const router = useRouter();
-    const params = useParams<{ slug: string }>();
+    const queryClient = useQueryClient();
 
-    const slug = params.slug;
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [selectionLoaded, setSelectionLoaded] = useState(false);
 
-    const [quantity, setQuantity] = useState(1);
-    const [address, setAddress] =
-        useState<BuyNowAddress>(initialAddress);
-    const [notes, setNotes] = useState("");
+    const [address, setAddress] = useState<CheckoutAddress>(initialAddress);
 
-    const [createdOrder, setCreatedOrder] =
-        useState<BuyNowResult | null>(null);
     const [errorMessage, setErrorMessage] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
+
+    useEffect(() => {
+        const savedSelection = sessionStorage.getItem("checkout_cart_item_ids");
+
+        if (!savedSelection) {
+            setSelectionLoaded(true);
+            return;
+        }
+
+        try {
+            const parsedSelection: unknown = JSON.parse(savedSelection);
+
+            if (Array.isArray(parsedSelection)) {
+                const validIds = parsedSelection.filter(
+                    (id): id is number => typeof id === "number" && id > 0,
+                );
+
+                setSelectedIds(validIds);
+            }
+        } catch {
+            sessionStorage.removeItem("checkout_cart_item_ids");
+        } finally {
+            setSelectionLoaded(true);
+        }
+    }, []);
 
     const {
-        data: product,
-        isLoading,
-        isError,
+        data: cart = [],
+        isLoading: isCartLoading,
+        isError: isCartError,
     } = useQuery({
-        queryKey: ["product-detail", slug],
-        queryFn: () => getProductDetails(slug),
-        enabled: Boolean(slug),
+        queryKey: ["get-cart"],
+        queryFn: getCart,
     });
 
-    const checkoutMutation = useMutation({
-        mutationFn: () =>
-            checkoutProduct(slug, {
-                quantity,
-                address,
-                payment_method: "cod",
-            }),
+    const selectedItems = useMemo(() => {
+        return cart.filter((item) => selectedIds.includes(item.id));
+    }, [cart, selectedIds]);
 
-        onSuccess: (response) => {
-            setCreatedOrder(response.data);
+    const subtotal = useMemo(() => {
+        return selectedItems.reduce(
+            (total, item) => total + item.product.price * item.quantity,
+            0,
+        );
+    }, [selectedItems]);
+
+    const shippingCost =
+        selectedItems.length === 0 ? 0 : subtotal >= 500_000 ? 0 : 25_000;
+
+    const grandTotal = subtotal + shippingCost;
+
+    const checkoutMutation = useMutation({
+        mutationFn: checkoutCart,
+
+        onSuccess: async (response) => {
+            sessionStorage.removeItem("checkout_cart_item_ids");
+
+            await queryClient.invalidateQueries({ queryKey: ["get-cart"] });
+
+            window.dispatchEvent(new Event("cart-updated"));
+
+            setSuccessMessage(
+                `Pesanan ${response.data.order_number} berhasil dibuat.`,
+            );
         },
 
         onError: (error) => {
@@ -98,90 +155,68 @@ export default function BuyPage() {
                 return;
             }
 
-            setErrorMessage(
-                "Terjadi kesalahan ketika membuat pesanan.",
-            );
+            setErrorMessage("Terjadi kesalahan ketika checkout.");
         },
     });
 
-    const updateAddress = (
-        field: keyof BuyNowAddress,
-        value: string,
-    ) => {
+    const updateAddress = (field: keyof CheckoutAddress, value: string) => {
         setAddress((previous) => ({
             ...previous,
             [field]: value,
         }));
     };
 
-    const increaseQuantity = () => {
-        if (!product) return;
-
-        setQuantity((current) =>
-            Math.min(current + 1, product.stock),
-        );
-    };
-
-    const decreaseQuantity = () => {
-        setQuantity((current) => Math.max(1, current - 1));
-    };
-
-    const handleCheckout = (
-        event: FormEvent<HTMLFormElement>,
-    ) => {
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setErrorMessage("");
 
-        if (!product) {
-            setErrorMessage("Produk tidak ditemukan.");
+        if (selectedItems.length === 0) {
+            setErrorMessage("Tidak ada produk yang dipilih.");
             return;
         }
 
-        if (product.stock <= 0) {
-            setErrorMessage("Stok produk sedang habis.");
-            return;
-        }
-
-        if (quantity > product.stock) {
-            setErrorMessage(
-                `Stok produk hanya tersisa ${product.stock}.`,
-            );
-            return;
-        }
-
-        checkoutMutation.mutate();
+        checkoutMutation.mutate({
+            cart_item_ids: selectedItems.map((item) => item.id),
+            address,
+            payment_method: "cod",
+        });
     };
 
-    if (isLoading) {
+    if (!selectionLoaded || isCartLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <p className="text-sm text-muted-foreground">
-                    Memuat produk...
+                    Memuat checkout...
                 </p>
             </div>
         );
     }
 
-    if (isError || !product) {
+    if (isCartError) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-                <p className="text-destructive">
-                    Produk tidak ditemukan.
-                </p>
+                <p className="text-destructive">Gagal mengambil data cart.</p>
 
-                <Button onClick={() => router.push("/products")}>
-                    Kembali ke Produk
+                <Button onClick={() => router.push("/cart")}>
+                    Kembali ke Keranjang
                 </Button>
             </div>
         );
     }
 
-    const subtotal = product.price * quantity;
+    if (selectedItems.length === 0) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+                <p className="text-muted-foreground">
+                    Tidak ada produk yang dipilih.
+                </p>
 
-    // Hanya perkiraan tampilan.
-    // Backend harus menghitung ulang nilai ini.
-    const shippingCost = subtotal >= 500_000 ? 0 : 25_000;
-    const grandTotal = subtotal + shippingCost;
+                <Button onClick={() => router.push("/cart")}>
+                    Kembali ke Keranjang
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <>
@@ -205,7 +240,7 @@ export default function BuyPage() {
                         </p>
                     </div>
 
-                    <form onSubmit={handleCheckout}>
+                    <form onSubmit={handleSubmit}>
                         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
                             <div className="space-y-6 lg:col-span-2">
                                 {/* Data penerima */}
@@ -370,10 +405,7 @@ export default function BuyPage() {
                                                     maxLength={100}
                                                     value={address.city}
                                                     onChange={(event) =>
-                                                        updateAddress(
-                                                            "city",
-                                                            event.target.value,
-                                                        )
+                                                        updateAddress("city", event.target.value)
                                                     }
                                                     placeholder="Contoh: Jakarta Timur"
                                                 />
@@ -416,10 +448,7 @@ export default function BuyPage() {
                                                     onChange={(event) =>
                                                         updateAddress(
                                                             "postal_code",
-                                                            event.target.value.replace(
-                                                                /\D/g,
-                                                                "",
-                                                            ),
+                                                            event.target.value.replace(/\D/g, ""),
                                                         )
                                                     }
                                                     placeholder="12345"
@@ -460,38 +489,6 @@ export default function BuyPage() {
                                         </div>
                                     </CardContent>
                                 </Card>
-
-                                {/* Notes */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-lg">
-                                            <Badge
-                                                variant="secondary"
-                                                className="flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
-                                            >
-                                                4
-                                            </Badge>
-
-                                            Catatan Pesanan
-                                        </CardTitle>
-
-                                        <CardDescription>
-                                            Opsional—tulis permintaan khusus.
-                                        </CardDescription>
-                                    </CardHeader>
-
-                                    <CardContent>
-                                        <Textarea
-                                            value={notes}
-                                            onChange={(event) =>
-                                                setNotes(event.target.value)
-                                            }
-                                            maxLength={500}
-                                            rows={3}
-                                            placeholder="Contoh: Tolong packing rapi..."
-                                        />
-                                    </CardContent>
-                                </Card>
                             </div>
 
                             {/* Summary */}
@@ -501,63 +498,42 @@ export default function BuyPage() {
                                         <CardTitle className="text-lg">
                                             Ringkasan Pesanan
                                         </CardTitle>
+
+                                        <CardDescription>
+                                            {selectedItems.length} produk dipilih
+                                        </CardDescription>
                                     </CardHeader>
 
                                     <CardContent className="space-y-4">
-                                        <div className="flex gap-3">
-                                            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
-                                                <img
-                                                    src={product.thumbnail}
-                                                    alt={product.title}
-                                                    className="h-full w-full object-cover"
-                                                />
-                                            </div>
+                                        <div className="max-h-[320px] space-y-4 overflow-y-auto pr-1">
+                                            {selectedItems.map((item) => (
+                                                <div key={item.id} className="flex gap-3">
+                                                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
+                                                        <img
+                                                            src={item.product.thumbnail}
+                                                            alt={item.product.title}
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    </div>
 
-                                            <div className="min-w-0 flex-1">
-                                                <p className="line-clamp-2 text-sm font-medium">
-                                                    {product.title}
-                                                </p>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="line-clamp-2 text-sm font-medium">
+                                                            {item.product.title}
+                                                        </p>
 
-                                                <p className="mt-1 text-sm font-semibold">
-                                                    {formatRupiah(product.price)}
-                                                </p>
+                                                        <p className="mt-1 text-xs text-muted-foreground">
+                                                            {formatRupiah(item.product.price)} ×{" "}
+                                                            {item.quantity}
+                                                        </p>
 
-                                                <p className="mt-1 text-xs text-muted-foreground">
-                                                    Stok: {product.stock}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm text-muted-foreground">
-                                                Jumlah
-                                            </span>
-
-                                            <div className="flex items-center gap-3">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="icon"
-                                                    onClick={decreaseQuantity}
-                                                    disabled={quantity <= 1}
-                                                >
-                                                    −
-                                                </Button>
-
-                                                <span className="min-w-6 text-center">
-                                                    {quantity}
-                                                </span>
-
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="icon"
-                                                    onClick={increaseQuantity}
-                                                    disabled={quantity >= product.stock}
-                                                >
-                                                    +
-                                                </Button>
-                                            </div>
+                                                        <p className="mt-1 text-sm font-semibold">
+                                                            {formatRupiah(
+                                                                item.product.price * item.quantity,
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
 
                                         <Separator />
@@ -603,16 +579,11 @@ export default function BuyPage() {
                                             type="submit"
                                             size="lg"
                                             className="w-full"
-                                            disabled={
-                                                checkoutMutation.isPending ||
-                                                product.stock <= 0
-                                            }
+                                            disabled={checkoutMutation.isPending}
                                         >
                                             {checkoutMutation.isPending
                                                 ? "Memproses..."
-                                                : product.stock <= 0
-                                                    ? "Stok Habis"
-                                                    : "Buat Pesanan"}
+                                                : "Buat Pesanan"}
                                         </Button>
                                     </CardFooter>
                                 </Card>
@@ -623,13 +594,9 @@ export default function BuyPage() {
             </div>
 
             <SuccessModal
-                isOpen={createdOrder !== null}
+                isOpen={successMessage !== ""}
                 title="Pesanan berhasil dibuat"
-                subtitle={
-                    createdOrder
-                        ? `Nomor pesanan: ${createdOrder.order_number}`
-                        : undefined
-                }
+                subtitle={successMessage}
                 buttonText="Selesai"
                 onClose={() => router.push("/")}
             />
