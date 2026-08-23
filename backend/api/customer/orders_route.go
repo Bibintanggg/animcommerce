@@ -19,7 +19,8 @@ func NewOrdersRoute(api *gin.RouterGroup, orderHandler *handler.OrderHandler) *O
 }
 
 func (r *OrdersRoute) Register() {
-	r.api.POST("/orders/checkout", r.orderHandler.Checkout)
+	r.api.POST("/orders/checkout", r.orderHandler.CheckoutCart)
+	r.api.POST("/orders/checkout/product/:slug", r.orderHandler.CheckoutProduct)
 	r.api.GET("/orders", r.orderHandler.GetMyOrders)
 	r.api.GET("/orders/:id", r.orderHandler.GetOrderDetail)
 	r.api.GET("/orders/:id/invoice", r.orderHandler.GetMyInvoice)

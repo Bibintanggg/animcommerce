@@ -2,12 +2,12 @@ package service
 
 import (
 	dto "animcommerce/backend/dto/order"
-	"animcommerce/backend/helper"
 	"animcommerce/backend/models"
 	"animcommerce/backend/models/enum"
 	"animcommerce/backend/repository"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -15,7 +15,8 @@ import (
 
 type OrderService interface {
 	GetAllOrders(filter dto.OrderFilter) ([]models.OrderProduct, int64, error)
-	Checkout(userID int64, req dto.CheckoutRequest) error
+	CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.CheckoutResponse, error)
+	CheckoutProduct(userID int64, slug string, request dto.CheckoutProductRequest) (dto.CheckoutResponse, error)
 	GetMyOrders(userID int64) ([]models.OrderProduct, error)
 	GetOrderDetail(userID int64, orderID int64) (*models.OrderProduct, error)
 	GetAdminOrderDetail(orderID int64) (*models.OrderProduct, error)
@@ -31,6 +32,15 @@ type orderService struct {
 	productRepo     repository.ProductRepository
 	addressRepo     repository.UserAddressRepository
 	invoiceService  InvoiceService
+}
+
+// helper
+func calculateShippingCost(subtotal int64) int64 {
+	if subtotal >= 500_000 {
+		return 0
+	}
+
+	return 25_000
 }
 
 func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, orderItemRepo repository.OrderItemRepository,
@@ -59,120 +69,309 @@ func (s *orderService) GetAllOrders(filter dto.OrderFilter) ([]models.OrderProdu
 	return orders, total, nil
 }
 
-func (s *orderService) Checkout(userID int64, req dto.CheckoutRequest) error {
-	tx := s.db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
+func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.CheckoutResponse, error) {
+	var response dto.CheckoutResponse
+	var createdOrder models.OrderProduct
 
-	address, err := s.addressRepo.FindByID(req.AddressID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+	// Mencegah ID cart ganda dikirim dalam request.
+	uniqueIDs := make(map[int64]struct{})
 
-	if address.UserID != userID {
-		tx.Rollback()
-		return errors.New("Address not found")
-	}
-
-	cart, err := s.cartRepo.GetCartByUserID(userID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	items, err := s.cartProductRepo.GetCartByID(cart.ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if len(items) == 0 {
-		tx.Rollback()
-		return errors.New("Cart is empty!")
-	}
-
-	var totalPrice int64
-
-	for _, item := range items {
-
-		if item.Product.Stock < int(item.Quantity) {
-			tx.Rollback()
-			return errors.New("Stock not enough")
+	for _, itemID := range req.CartItemIDs {
+		if _, exists := uniqueIDs[itemID]; exists {
+			return response, errors.New("terdapat item cart duplikat")
 		}
 
-		totalPrice += int64(item.Product.Price) * int64(item.Quantity)
+		uniqueIDs[itemID] = struct{}{}
 	}
 
-	order := models.OrderProduct{
-		OrderNumber:    helper.GenerateOrderNumber(),
-		UserID:         userID,
-		AddressID:      req.AddressID,
-		TotalPrice:     totalPrice,
-		ShippingCost:   13000,
-		StatusOrder:    enum.OrderPending,
-		StatusShipment: enum.ShipmentAwaitingPickup,
-	}
-
-	err = tx.Create(&order).Error
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	for _, item := range items {
-		orderItem := models.OrderItem{
-			OrderID:   order.ID,
-			ProductID: item.ProductID,
-			Quantity:  int64(item.Quantity),
-			Price:     int64(item.Product.Price),
-		}
-
-		err = tx.Create(&orderItem).Error
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		cart, err := s.cartRepo.GetCartByUserID(userID)
 		if err != nil {
-			tx.Rollback()
-			return err
+			return errors.New("cart tidak ditemukan")
 		}
 
-		// product := item.Product
-
-		// product.Stock -= int(item.Quantity)
-
-		// err := tx.Save(&product).Error
-
-		err := s.productRepo.ReduceStock(
+		cartItems, err := s.cartProductRepo.GetCartItemsByIDs(
 			tx,
-			item.ProductID,
-			int(item.Quantity),
+			cart.ID,
+			req.CartItemIDs,
 		)
 		if err != nil {
-			tx.Rollback()
 			return err
 		}
-	}
 
-	err = tx.Where("cart_id = ?", cart.ID).Delete(&models.CartProduct{}).Error
+		// Memastikan user tidak mengirim ID cart milik orang lain.
+		if len(cartItems) != len(req.CartItemIDs) {
+			return errors.New("sebagian item cart tidak valid")
+		}
+
+		address := models.UserAddress{
+			UserID:       userID,
+			ReceiverName: req.Address.ReceiverName,
+			PhoneNumber:  req.Address.PhoneNumber,
+			AddressLine:  req.Address.AddressLine,
+			Province:     req.Address.Province,
+			City:         req.Address.City,
+			District:     req.Address.District,
+			PostalCode:   req.Address.PostalCode,
+			IsDefault:    false,
+		}
+
+		if err := tx.Create(&address).Error; err != nil {
+			return fmt.Errorf("gagal menyimpan alamat: %w", err)
+		}
+
+		var subtotal int64
+
+		for _, item := range cartItems {
+			if item.Quantity <= 0 {
+				return errors.New("quantity produk tidak valid")
+			}
+
+			if item.Product.Stock < item.Quantity {
+				return fmt.Errorf(
+					"stok produk %s tidak mencukupi",
+					item.Product.Title,
+				)
+			}
+
+			subtotal += int64(item.Product.Price) * int64(item.Quantity)
+		}
+
+		shippingCost := calculateShippingCost(subtotal)
+		grandTotal := subtotal + shippingCost
+
+		createdOrder = models.OrderProduct{
+			OrderNumber:  fmt.Sprintf("ORD-%d-%d", userID, time.Now().Unix()),
+			UserID:       userID,
+			AddressID:    address.ID,
+			TotalPrice:   subtotal,
+			ShippingCost: shippingCost,
+
+			Courier:        "",
+			TrackingNumber: "",
+
+			StatusOrder:    enum.OrderPending,
+			StatusShipment: enum.ShipmentAwaitingPickup,
+		}
+
+		if err := tx.Create(&createdOrder).Error; err != nil {
+			return fmt.Errorf("gagal membuat order: %w", err)
+		}
+
+		for _, item := range cartItems {
+			orderItem := models.OrderItem{
+				OrderID:   createdOrder.ID,
+				ProductID: item.ProductID,
+				Quantity:  int64(item.Quantity),
+				Price:     int64(item.Product.Price),
+			}
+
+			if err := tx.Create(&orderItem).Error; err != nil {
+				return fmt.Errorf("gagal membuat order item: %w", err)
+			}
+
+			if err := s.productRepo.ReduceStock(
+				tx,
+				item.ProductID,
+				item.Quantity,
+			); err != nil {
+				return err
+			}
+		}
+
+		payment := models.Payment{
+			OrderID:       createdOrder.ID,
+			PaymentMethod: req.PaymentMethod,
+			Amount:        grandTotal,
+
+			// COD masih pending sampai admin mengonfirmasi pembayaran.
+			PaymentStatus: enum.PaymentPending,
+		}
+
+		if err := tx.Create(&payment).Error; err != nil {
+			return fmt.Errorf("gagal membuat payment: %w", err)
+		}
+
+		// Hanya menghapus item yang dipilih customer.
+		if err := s.cartProductRepo.DeleteCartItemsByIDs(
+			tx,
+			cart.ID,
+			req.CartItemIDs,
+		); err != nil {
+			return err
+		}
+
+		response = dto.CheckoutResponse{
+			OrderID:       createdOrder.ID,
+			OrderNumber:   createdOrder.OrderNumber,
+			Subtotal:      subtotal,
+			ShippingCost:  shippingCost,
+			GrandTotal:    grandTotal,
+			PaymentMethod: req.PaymentMethod,
+		}
+
+		return nil
+	})
 
 	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return err
+		return response, err
 	}
 
 	go func(orderID int64) {
-		_, err := s.invoiceService.GenerateInvoice(orderID)
-		if err != nil {
-			fmt.Printf("Failed to generate invoice for order %d: %v\n", orderID, err)
+		if _, err := s.invoiceService.GenerateInvoice(orderID); err != nil {
+			log.Printf("failed generating invoice: %v", err)
 		}
-	}(order.ID)
+	}(createdOrder.ID)
 
-	return nil
+	return response, nil
+}
+
+func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.CheckoutProductRequest) (dto.CheckoutResponse, error) {
+	var response dto.CheckoutResponse
+	var createdOrder models.OrderProduct
+
+	if request.Quantity <= 0 {
+		return response, errors.New("quantity produk tidak valid")
+	}
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Harga dan stok diambil dari database berdasarkan slug.
+		product, err := s.productRepo.FindBySlug(slug)
+		if err != nil {
+			return errors.New("produk tidak ditemukan")
+		}
+
+		if product.IsActive != enum.ProductPublished {
+			return errors.New("produk tidak tersedia")
+		}
+
+		if product.Stock < request.Quantity {
+			return fmt.Errorf(
+				"stok %s hanya tersisa %d",
+				product.Title,
+				product.Stock,
+			)
+		}
+
+		address := models.UserAddress{
+			UserID:       userID,
+			ReceiverName: request.Address.ReceiverName,
+			PhoneNumber:  request.Address.PhoneNumber,
+			AddressLine:  request.Address.AddressLine,
+			Province:     request.Address.Province,
+			City:         request.Address.City,
+			District:     request.Address.District,
+			PostalCode:   request.Address.PostalCode,
+			IsDefault:    false,
+		}
+
+		if err := tx.Create(&address).Error; err != nil {
+			return fmt.Errorf(
+				"gagal menyimpan alamat: %w",
+				err,
+			)
+		}
+
+		// Harga selalu dihitung dari database.
+		subtotal := int64(product.Price) * int64(request.Quantity)
+
+		shippingCost := int64(25_000)
+
+		if subtotal >= 500_000 {
+			shippingCost = 0
+		}
+
+		grandTotal := subtotal + shippingCost
+
+		createdOrder = models.OrderProduct{
+			OrderNumber: fmt.Sprintf(
+				"ORD-%d-%d",
+				userID,
+				time.Now().UnixNano(),
+			),
+			UserID:         userID,
+			AddressID:      address.ID,
+			TotalPrice:     subtotal,
+			ShippingCost:   shippingCost,
+			Courier:        "",
+			TrackingNumber: "",
+
+			StatusOrder:    enum.OrderPending,
+			StatusShipment: enum.ShipmentAwaitingPickup,
+		}
+
+		if err := tx.Create(&createdOrder).Error; err != nil {
+			return fmt.Errorf(
+				"gagal membuat order: %w",
+				err,
+			)
+		}
+
+		orderItem := models.OrderItem{
+			OrderID:   createdOrder.ID,
+			ProductID: product.ID,
+			Quantity:  int64(request.Quantity),
+			Price:     int64(product.Price),
+		}
+
+		if err := tx.Create(&orderItem).Error; err != nil {
+			return fmt.Errorf(
+				"gagal membuat order item: %w",
+				err,
+			)
+		}
+
+		// ReduceStock milikmu sudah menggunakan transaction
+		// dan mengecek ketersediaan stok kembali.
+		if err := s.productRepo.ReduceStock(
+			tx,
+			product.ID,
+			request.Quantity,
+		); err != nil {
+			return err
+		}
+
+		payment := models.Payment{
+			OrderID:       createdOrder.ID,
+			PaymentMethod: request.PaymentMethod,
+			Amount:        grandTotal,
+			PaymentStatus: enum.PaymentPending,
+		}
+
+		if err := tx.Create(&payment).Error; err != nil {
+			return fmt.Errorf(
+				"gagal membuat payment: %w",
+				err,
+			)
+		}
+
+		response = dto.CheckoutResponse{
+			OrderID:       createdOrder.ID,
+			OrderNumber:   createdOrder.OrderNumber,
+			Subtotal:      subtotal,
+			ShippingCost:  shippingCost,
+			GrandTotal:    grandTotal,
+			PaymentMethod: request.PaymentMethod,
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return response, err
+	}
+
+	go func(orderID int64) {
+		if _, err := s.invoiceService.GenerateInvoice(orderID); err != nil {
+			log.Printf(
+				"gagal membuat invoice order %d: %v",
+				orderID,
+				err,
+			)
+		}
+	}(createdOrder.ID)
+
+	return response, nil
 }
 
 func (s *orderService) GetMyOrders(userID int64) ([]models.OrderProduct, error) {

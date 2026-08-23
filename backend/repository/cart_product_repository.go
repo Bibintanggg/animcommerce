@@ -2,6 +2,7 @@ package repository
 
 import (
 	"animcommerce/backend/models"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -13,6 +14,8 @@ type CartProductRepository interface {
 	Update(item *models.CartProduct) error
 	DeleteByCartAndProduct(cartID int64, productID int64) error
 	ClearCart(cartID int64) error
+	GetCartItemsByIDs(tx *gorm.DB, cartID int64, itemIDs []int64) ([]models.CartProduct, error)
+	DeleteCartItemsByIDs(tx *gorm.DB, cartID int64, itemIDs []int64) error
 }
 
 type cartProductRepository struct {
@@ -54,4 +57,23 @@ func (r *cartProductRepository) DeleteByCartAndProduct(cartID int64, productID i
 
 func (r *cartProductRepository) ClearCart(cartID int64) error {
 	return r.db.Where("cart_id = ?", cartID).Delete(&models.CartProduct{}).Error
+}
+
+func (r *cartProductRepository) GetCartItemsByIDs(tx *gorm.DB, cartID int64, itemIDs []int64) ([]models.CartProduct, error) {
+	var items []models.CartProduct
+	err := tx.Preload("Product").Where("cart_id = ? AND IN ?", cartID, itemIDs).Find(&items).Error
+	return items, err
+}
+
+func (r *cartProductRepository) DeleteCartItemsByIDs(tx *gorm.DB, cartID int64, itemIDs []int64) error {
+	result := tx.Where("cart_id = ? AND IN ?", cartID, itemIDs).Delete(&models.CartProduct{})
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected != int64(len(itemIDs)) {
+		return errors.New("Sebagian cart gagal dihapus")
+	}
+
+	return nil
 }

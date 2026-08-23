@@ -59,17 +59,9 @@ func (h *OrderHandler) GetAllOrders(c *gin.Context) {
 		"total_pages": (total + int64(limit) - 1) / int64(limit),
 	})
 }
-func (h *OrderHandler) Checkout(c *gin.Context) {
-	var req dto.CheckoutRequest
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	userID, exists := c.Get("user_id")
+func (h *OrderHandler) CheckoutCart(c *gin.Context) {
+	userIDValue, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"message": "Unauthorized",
@@ -77,11 +69,25 @@ func (h *OrderHandler) Checkout(c *gin.Context) {
 		return
 	}
 
-	err := h.service.Checkout(
-		userID.(int64),
-		req,
-	)
+	userID, ok := userIDValue.(int64)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Invalid user",
+		})
+		return
+	}
 
+	var request dto.CheckoutRequest
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Data checkout tidak valid",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	result, err := h.service.CheckoutCart(userID, request)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -89,8 +95,63 @@ func (h *OrderHandler) Checkout(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Checkout success",
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Checkout berhasil",
+		"data":    result,
+	})
+}
+
+func (h *OrderHandler) CheckoutProduct(c *gin.Context) {
+	slug := c.Param("slug")
+
+	if slug == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Slug produk wajib diisi",
+		})
+		return
+	}
+
+	userIDValue, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Silakan login terlebih dahulu",
+		})
+		return
+	}
+
+	userID, ok := userIDValue.(int64)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Data pengguna tidak valid",
+		})
+		return
+	}
+
+	var request dto.CheckoutProductRequest
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Data checkout tidak valid",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	result, err := h.service.CheckoutProduct(
+		userID,
+		slug,
+		request,
+	)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Checkout berhasil",
+		"data":    result,
 	})
 }
 
