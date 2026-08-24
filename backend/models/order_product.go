@@ -14,6 +14,7 @@ type OrderProduct struct {
 	AddressID      int64               `json:"address_id"`
 	UserAddress    UserAddress         `gorm:"foreignKey:AddressID" json:"address"`
 	OrderItem      []OrderItem         `gorm:"foreignKey:OrderID" json:"items"`
+	Payment        *Payment            `gorm:"foreignKey:OrderID;references:ID" json:"payment,omitempty"`
 	TotalPrice     int64               `json:"total_price"`
 	ShippingCost   int64               `json:"shipping_cost"`
 	StatusOrder    enum.StatusOrder    `gorm:"default:pending" json:"status_order"`

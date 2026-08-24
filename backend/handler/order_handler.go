@@ -5,6 +5,7 @@ import (
 	"animcommerce/backend/models"
 	"animcommerce/backend/service"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,12 +16,14 @@ import (
 )
 
 type OrderHandler struct {
-	service service.OrderService
+	service             service.OrderService
+	notificationService service.NotificationService
 }
 
-func NewOrderHandler(service service.OrderService) *OrderHandler {
+func NewOrderHandler(service service.OrderService, notificationService service.NotificationService) *OrderHandler {
 	return &OrderHandler{
-		service: service,
+		service:             service,
+		notificationService: notificationService,
 	}
 }
 
@@ -95,6 +98,17 @@ func (h *OrderHandler) CheckoutCart(c *gin.Context) {
 		return
 	}
 
+	if err := h.notificationService.NotifyNewOrder(
+		result.OrderID,
+		result.OrderNumber,
+	); err != nil {
+		// Jangan mengubah checkout menjadi gagal karena notifikasi gagal.
+		log.Printf(
+			"failed to create order notification: %v",
+			err,
+		)
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Checkout berhasil",
 		"data":    result,
@@ -142,11 +156,22 @@ func (h *OrderHandler) CheckoutProduct(c *gin.Context) {
 		slug,
 		request,
 	)
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
 		})
 		return
+	}
+
+	if err := h.notificationService.NotifyNewOrder(
+		result.OrderID,
+		result.OrderNumber,
+	); err != nil {
+		log.Printf(
+			"failed to create order notification: %v",
+			err,
+		)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{

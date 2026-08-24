@@ -3,9 +3,14 @@ package main
 import (
 	"animcommerce/backend/config"
 	"animcommerce/backend/database"
+	"animcommerce/backend/handler"
 	"animcommerce/backend/helper"
+	"animcommerce/backend/repository"
 	"animcommerce/backend/routes"
+	"animcommerce/backend/service"
+	"context"
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -54,7 +59,42 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	routes.SetupRoutes(r, db, cld)
+	firebaseMessagingClient, err :=
+		config.NewFirebaseMessagingClient(
+			context.Background(),
+		)
+
+	if err != nil {
+		log.Fatalf(
+			"failed to initialize Firebase: %v",
+			err,
+		)
+	}
+
+	fcmDeviceRepository :=
+		repository.NewFCMDeviceRepository(db)
+
+	pushNotificationService :=
+		service.NewPushNotificationService(
+			firebaseMessagingClient,
+			fcmDeviceRepository,
+			os.Getenv("FRONTEND_URL"),
+		)
+
+	fcmDeviceHandler :=
+		handler.NewFCMDeviceHandler(
+			fcmDeviceRepository,
+		)
+
+	routes.SetupRoutes(
+		r,
+		db,
+		cld,
+		pushNotificationService,
+		fcmDeviceHandler,
+	)
+
+	routes.SetupRoutes(r, db, cld, pushNotificationService, fcmDeviceHandler)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)

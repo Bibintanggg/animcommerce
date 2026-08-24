@@ -6,11 +6,11 @@ import (
 )
 
 type Payment struct {
-	ID            int64  `gorm:"primaryKey;autoIncrement"`
-	OrderID       int64  `gorm:"unique"`
-	PaymentMethod string `gorm:"varchar(30)"`
-	Amount        int64
-	PaymentStatus enum.PaymentStatus `gorm:"default:pending"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID            int64              `gorm:"primaryKey;autoIncrement" json:"id"`
+	OrderID       int64              `gorm:"not null;uniqueIndex" json:"order_id"`
+	PaymentMethod string             `gorm:"type:varchar(30);not null" json:"payment_method"`
+	Amount        int64              `gorm:"not null" json:"amount"`
+	PaymentStatus enum.PaymentStatus `gorm:"type:varchar(30);not null;default:pending" json:"payment_status"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at"`
 }

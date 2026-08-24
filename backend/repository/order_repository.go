@@ -31,13 +31,13 @@ func (r *orderRepository) Create(order *models.OrderProduct) error {
 
 func (r *orderRepository) FindByID(id int64) (*models.OrderProduct, error) {
 	var order models.OrderProduct
-	err := r.db.Preload("User").Preload("UserAddress").Preload("OrderItem.Product").First(&order, id).Error
+	err := r.db.Preload("User").Preload("UserAddress").Preload("OrderItem.Product").Preload("Payment").First(&order, id).Error
 	return &order, err
 }
 
 func (r *orderRepository) FindByUserID(userID int64) ([]models.OrderProduct, error) {
 	var order []models.OrderProduct
-	err := r.db.Preload("User").Preload("UserAddress").Preload("OrderItem.Product").Where("user_id = ?", userID).Order("created_at DESC").Find(&order).Error
+	err := r.db.Preload("User").Preload("UserAddress").Preload("OrderItem.Product").Preload("Payment").Where("user_id = ?", userID).Order("created_at DESC").Find(&order).Error
 	return order, err
 }
 
@@ -80,6 +80,7 @@ func (r *orderRepository) GetAllOrders(filter dto.OrderFilter) ([]models.OrderPr
 		Preload("UserAddress").
 		Preload("OrderItem").
 		Preload("OrderItem.Product").
+		Preload("Payment").
 		Order("order_products.created_at DESC").
 		Find(&orders).Error
 

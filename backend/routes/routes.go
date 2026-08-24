@@ -8,6 +8,7 @@ import (
 	"animcommerce/backend/handler"
 	"animcommerce/backend/middleware"
 	"animcommerce/backend/models/enum"
+	"animcommerce/backend/realtime"
 	"animcommerce/backend/repository"
 	"animcommerce/backend/service"
 	"animcommerce/backend/storage/images"
@@ -18,7 +19,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
+func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary, pushNotificationService service.PushNotificationService,
+	fcmDeviceHandler *handler.FCMDeviceHandler) {
 	storage := images.NewCloudinaryStorage(cld)
 
 	loginRepository := repository.NewLoginRepository(db)
@@ -53,6 +55,21 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 	wishlistService := service.NewWishlistService(wishlistRepository, productRepository)
 	wishlistHandler := handler.NewWishlistHandler(wishlistService)
 
+	notificationHub := realtime.NewNotificationHub()
+	notificationRepository := repository.NewNotificationRepository(db)
+	notificationService :=
+		service.NewNotificationService(
+			notificationRepository,
+			notificationHub,
+			pushNotificationService,
+		)
+
+	notificationHandler :=
+		handler.NewNotificationHandler(
+			notificationService,
+			notificationHub,
+		)
+
 	orderRepository := repository.NewOrderRepository(db)
 	invoiceService := service.NewInvoiceService(orderRepository, db)
 	orderItemRepository := repository.NewOrderItemRepository(db)
@@ -68,7 +85,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 		addressRepository,
 		invoiceService,
 	)
-	orderHandler := handler.NewOrderHandler(orderService)
+	orderHandler := handler.NewOrderHandler(orderService, notificationService)
 
 	api := r.Group("/api")
 	{
@@ -109,6 +126,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary) {
 			admin.NewReviewRoute(adminGroup, reviewHandler).Register()
 			admin.NewProductRoute(adminGroup, productHandler).Register()
 			admin.NewOrderRoute(adminGroup, orderHandler).Register()
+
+			notificationRoute := admin.NewNotificationRoute(adminGroup, notificationHandler, fcmDeviceHandler)
+
+			notificationRoute.Register()
 
 			superadminGroup := api.Group("/superadmin")
 			superadminGroup.Use(

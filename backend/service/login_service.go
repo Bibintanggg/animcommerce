@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type LoginService interface {
+type LoginService interface {	
 	Login(req dto.LoginRequest) (*dto.LoginResponse, error)
 }
 

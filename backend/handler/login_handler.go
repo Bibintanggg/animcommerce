@@ -2,30 +2,28 @@ package handler
 
 import (
 	"animcommerce/backend/dto"
+	"animcommerce/backend/service"
 	"net/http"
 
-	"animcommerce/backend/service"
-
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type LoginHandler struct {
-	DB      *gorm.DB
 	Service service.LoginService
 }
 
-func NewLoginHandler(service service.LoginService) *LoginHandler {
+func NewLoginHandler(
+	loginService service.LoginService,
+) *LoginHandler {
 	return &LoginHandler{
-		Service: service,
+		Service: loginService,
 	}
 }
 
 func (h *LoginHandler) Login(c *gin.Context) {
 	var request dto.LoginRequest
 
-	err := c.ShouldBindJSON(&request)
-	if err != nil {
+	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
 		})
@@ -40,8 +38,20 @@ func (h *LoginHandler) Login(c *gin.Context) {
 		return
 	}
 
+	c.SetSameSite(http.SameSiteLaxMode)
+
+	c.SetCookie(
+		"access_token",
+		response.Token, // sebelumnya result.Token, itu salah
+		24*60*60,
+		"/",
+		"",
+		false, // localhost HTTP
+		true,
+	)
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Success created token",
+		"message": "Login berhasil",
 		"data":    response,
 	})
 }
