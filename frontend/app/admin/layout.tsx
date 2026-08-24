@@ -7,6 +7,7 @@ import ReactQueryProvider from "@/providers/ReactQueryProviders";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import AdminNotificationListener from "@/components/admin/AdminNotificationListener";
+import EnablePushNotification from "@/components/admin/EnablePushNotification";
 
 export const metadata: Metadata = {
     title: "NIHON — Premium Japanese Anime Merchandise",
@@ -31,9 +32,10 @@ export default function Layout({
 
                 <main className="flex-1 min-w-0 p-6">
                     <SidebarTrigger />
-                    <AdminNotificationListener />
+                    <EnablePushNotification />
                     {children}
                 </main>
+                <AdminNotificationListener />
             </SidebarProvider>
         </div>
     );
