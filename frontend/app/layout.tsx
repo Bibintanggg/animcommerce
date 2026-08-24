@@ -36,7 +36,14 @@ export default function RootLayout({
       <body>
         <ReactQueryProvider>
           {children}
-          <GooeyToaster position="top-center" />
+
+          <GooeyToaster
+            position="top-right"
+            closeButton
+            showProgress
+            preset="smooth"
+            showTimestamp
+          />
         </ReactQueryProvider>
       </body>
     </html>

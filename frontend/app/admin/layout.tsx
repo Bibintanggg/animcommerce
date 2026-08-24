@@ -6,6 +6,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import ReactQueryProvider from "@/providers/ReactQueryProviders";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import AdminNotificationListener from "@/components/admin/AdminNotificationListener";
 
 export const metadata: Metadata = {
     title: "NIHON — Premium Japanese Anime Merchandise",
@@ -30,6 +31,7 @@ export default function Layout({
 
                 <main className="flex-1 min-w-0 p-6">
                     <SidebarTrigger />
+                    <AdminNotificationListener />
                     {children}
                 </main>
             </SidebarProvider>

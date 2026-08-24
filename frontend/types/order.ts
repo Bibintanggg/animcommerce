@@ -3,6 +3,7 @@ import { User } from "./user";
 import { UserAddress } from "./user_address";
 import { ShipmentStatus } from "@/enums/shipment-status";
 import { Product } from "./product";
+import { Payment } from "./payment";
 
 export interface OrderProduct {
     id: number;
@@ -12,11 +13,12 @@ export interface OrderProduct {
     user?: User;
     address_id: number;
     user_address?: UserAddress;
-    order_item: OrderItem[];
+    items: OrderItem[];
     total_price: number;
     shipping_cost: number;
     status_order: StatusOrder;
     status_shipment: ShipmentStatus;
+    payment?: Payment;
     tracking_number: string | null;
     courier: string | null;
     shipped_at: string | null;
