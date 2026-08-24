@@ -94,8 +94,6 @@ func main() {
 		fcmDeviceHandler,
 	)
 
-	routes.SetupRoutes(r, db, cld, pushNotificationService, fcmDeviceHandler)
-
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)
 	}

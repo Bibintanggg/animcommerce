@@ -2,3 +2,5 @@
 storage/*
 !storage/images/
 !storage/images/*.go
+firebase-service-account.json
+*.service-account.json

@@ -74,27 +74,36 @@ func (
 			"type":         "order.created",
 			"order_id":     orderIDString,
 			"order_number": orderNumber,
+			"title":        title,
+			"body":         body,
+			"url":          "/admin/orders/" + orderIDString,
 		},
 
+		// Webpush: &messaging.WebpushConfig{
+		// 	Notification: &messaging.WebpushNotification{
+		// 		Title: title,
+		// 		Body:  body,
+
+		// 		Icon: s.frontendURL +
+		// 			"/icons/icon-192.png",
+
+		// 		Badge: s.frontendURL +
+		// 			"/icons/badge-72.png",
+
+		// 		Tag: "order-" +
+		// 			orderIDString,
+		// 	},
+
+		// 	FCMOptions: &messaging.WebpushFCMOptions{
+		// 		Link: s.frontendURL +
+		// 			"/admin/orders/" +
+		// 			orderIDString,
+		// 	},
+		// },
+
 		Webpush: &messaging.WebpushConfig{
-			Notification: &messaging.WebpushNotification{
-				Title: title,
-				Body:  body,
-
-				Icon: s.frontendURL +
-					"/icons/icon-192.png",
-
-				Badge: s.frontendURL +
-					"/icons/badge-72.png",
-
-				Tag: "order-" +
-					orderIDString,
-			},
-
-			FCMOptions: &messaging.WebpushFCMOptions{
-				Link: s.frontendURL +
-					"/admin/orders/" +
-					orderIDString,
+			Headers: map[string]string{
+				"Urgency": "high",
 			},
 		},
 	}
