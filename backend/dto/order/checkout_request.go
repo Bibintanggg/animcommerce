@@ -1,5 +1,7 @@
 package order
 
+import "time"
+
 type CheckoutAddressRequest struct {
 	ReceiverName string `json:"receiver_name" binding:"required,min=2,max=100"`
 	PhoneNumber  string `json:"phone_number" binding:"required,min=10,max=20"`
@@ -17,10 +19,20 @@ type CheckoutRequest struct {
 }
 
 type CheckoutResponse struct {
-	OrderID       int64  `json:"order_id"`
-	OrderNumber   string `json:"order_number"`
-	Subtotal      int64  `json:"subtotal"`
-	ShippingCost  int64  `json:"shipping_cost"`
-	GrandTotal    int64  `json:"grand_total"`
-	PaymentMethod string `json:"payment_method"`
+	OrderID       int64                      `json:"order_id"`
+	OrderNumber   string                     `json:"order_number"`
+	Subtotal      int64                      `json:"subtotal"`
+	ShippingCost  int64                      `json:"shipping_cost"`
+	GrandTotal    int64                      `json:"grand_total"`
+	PaymentMethod string                     `json:"payment_method"`
+	Payment       PaymentInstructionResponse `json:"payment"`
+}
+
+type PaymentInstructionResponse struct {
+	Method    string     `json:"method"`
+	Status    string     `json:"status"`
+	Provider  string     `json:"provider"`
+	QRString  string     `json:"qr_string,omitempty"`
+	VANumber  string     `json:"va_number,omitempty"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }

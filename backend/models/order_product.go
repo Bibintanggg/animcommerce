@@ -12,7 +12,7 @@ type OrderProduct struct {
 	UserID         int64               `json:"user_id"`
 	User           User                `gorm:"foreignKey:UserID" json:"user"`
 	AddressID      int64               `json:"address_id"`
-	UserAddress    UserAddress         `gorm:"foreignKey:AddressID" json:"address"`
+	UserAddress    UserAddress         `gorm:"foreignKey:AddressID" json:"user_address"`
 	OrderItem      []OrderItem         `gorm:"foreignKey:OrderID" json:"items"`
 	Payment        *Payment            `gorm:"foreignKey:OrderID;references:ID" json:"payment,omitempty"`
 	TotalPrice     int64               `json:"total_price"`

@@ -13,6 +13,62 @@ import (
 	"gorm.io/gorm"
 )
 
+// helper
+func buildDummyPayment(
+	order models.OrderProduct,
+	amount int64,
+	method string,
+) (models.Payment, error) {
+	expiresAt := time.Now().Add(24 * time.Hour)
+
+	payment := models.Payment{
+		OrderID:           order.ID,
+		PaymentMethod:     method,
+		PaymentStatus:     enum.PaymentPending,
+		Amount:            amount,
+		Provider:          "dummy",
+		ExternalReference: "DUMMY-" + order.OrderNumber,
+		ExpiresAt:         &expiresAt,
+	}
+
+	switch method {
+	case "qris":
+		// Ini hanya teks demo yang nanti dibuat menjadi QR.
+		payment.QRString = fmt.Sprintf(
+			"ANIMCOMMERCE-DEMO|ORDER=%s|AMOUNT=%d",
+			order.OrderNumber,
+			amount,
+		)
+
+	case "bca_va":
+		// Sengaja bukan nomor VA sungguhan.
+		payment.VANumber = fmt.Sprintf(
+			"DEMO-BCA-%06d",
+			order.ID,
+		)
+
+	default:
+		return payment, errors.New(
+			"metode pembayaran tidak didukung",
+		)
+	}
+
+	return payment, nil
+}
+
+func mapPaymentInstruction(
+	payment models.Payment,
+) dto.PaymentInstructionResponse {
+	return dto.PaymentInstructionResponse{
+		Method:    payment.PaymentMethod,
+		Status:    string(payment.PaymentStatus),
+		Provider:  payment.Provider,
+		QRString:  payment.QRString,
+		VANumber:  payment.VANumber,
+		ExpiresAt: payment.ExpiresAt,
+	}
+}
+
 type OrderService interface {
 	GetAllOrders(filter dto.OrderFilter) ([]models.OrderProduct, int64, error)
 	CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.CheckoutResponse, error)
@@ -179,13 +235,21 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 			}
 		}
 
-		payment := models.Payment{
-			OrderID:       createdOrder.ID,
-			PaymentMethod: req.PaymentMethod,
-			Amount:        grandTotal,
+		payment, err := buildDummyPayment(
+			createdOrder,
+			grandTotal,
+			req.PaymentMethod,
+		)
 
-			// COD masih pending sampai admin mengonfirmasi pembayaran.
-			PaymentStatus: enum.PaymentPending,
+		if err != nil {
+			return err
+		}
+
+		if err := tx.Create(&payment).Error; err != nil {
+			return fmt.Errorf(
+				"gagal membuat payment: %w",
+				err,
+			)
 		}
 
 		if err := tx.Create(&payment).Error; err != nil {
@@ -351,7 +415,8 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 			Subtotal:      subtotal,
 			ShippingCost:  shippingCost,
 			GrandTotal:    grandTotal,
-			PaymentMethod: request.PaymentMethod,
+			PaymentMethod: payment.PaymentMethod,
+			Payment:       mapPaymentInstruction(payment),
 		}
 
 		return nil
