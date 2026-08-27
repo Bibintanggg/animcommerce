@@ -18,6 +18,11 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import {
+    CheckoutProductPayload,
+    CheckoutResult,
+    PaymentMethod,
+} from "@/types/checkout";
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -33,6 +38,8 @@ import { BuyNowAddress, BuyNowResult } from "@/types/checkout";
 
 import SuccessModal from "@/components/SuccessModal";
 import ErrorModal from "@/components/ErrorModal";
+import PaymentInstructionModal from "@/components/PaymentInstructionModal";
+import { Building2, CheckCircle2, QrCode } from "lucide-react";
 
 const initialAddress: BuyNowAddress = {
     receiver_name: "",
@@ -57,14 +64,13 @@ export default function BuyPage() {
     const params = useParams<{ slug: string }>();
 
     const slug = params.slug;
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("qris");
 
     const [quantity, setQuantity] = useState(1);
-    const [address, setAddress] =
-        useState<BuyNowAddress>(initialAddress);
+    const [address, setAddress] = useState<BuyNowAddress>(initialAddress);
     const [notes, setNotes] = useState("");
 
-    const [createdOrder, setCreatedOrder] =
-        useState<BuyNowResult | null>(null);
+    const [createdOrder, setCreatedOrder] = useState<BuyNowResult | null>(null);
     const [errorMessage, setErrorMessage] = useState("");
 
     const {
@@ -78,12 +84,7 @@ export default function BuyPage() {
     });
 
     const checkoutMutation = useMutation({
-        mutationFn: () =>
-            checkoutProduct(slug, {
-                quantity,
-                address,
-                payment_method: "cod",
-            }),
+        mutationFn: (payload: CheckoutProductPayload) => checkoutProduct(slug, payload),
 
         onSuccess: (response) => {
             setCreatedOrder(response.data);
@@ -149,7 +150,11 @@ export default function BuyPage() {
             return;
         }
 
-        checkoutMutation.mutate();
+        checkoutMutation.mutate({
+            quantity,
+            address,
+            payment_method: paymentMethod,
+        });
     };
 
     if (isLoading) {
@@ -448,17 +453,97 @@ export default function BuyPage() {
                                         </CardDescription>
                                     </CardHeader>
 
-                                    <CardContent>
-                                        <div className="rounded-lg border-2 border-primary bg-accent/30 p-4">
-                                            <div className="font-medium">
-                                                COD (Bayar di Tempat)
+                                    {/* Payment */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2 text-lg">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
+                                                >
+                                                    3
+                                                </Badge>
+
+                                                Metode Pembayaran
+                                            </CardTitle>
+
+                                            <CardDescription>
+                                                Pilih metode pembayaran yang ingin digunakan.
+                                            </CardDescription>
+                                        </CardHeader>
+
+                                        <CardContent>
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                {/* QRIS */}
+                                                <button
+                                                    type="button"
+                                                    aria-pressed={paymentMethod === "qris"}
+                                                    onClick={() =>
+                                                        setPaymentMethod("qris")
+                                                    }
+                                                    className={`relative rounded-2xl border-2 p-5 text-left transition ${paymentMethod === "qris"
+                                                            ? "border-[#BC002D] bg-red-50"
+                                                            : "border-gray-200 bg-white hover:border-gray-300"
+                                                        }`}
+                                                >
+                                                    {paymentMethod === "qris" && (
+                                                        <CheckCircle2 className="absolute right-4 top-4 h-5 w-5 text-[#BC002D]" />
+                                                    )}
+
+                                                    <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100">
+                                                        <QrCode className="h-5 w-5" />
+                                                    </div>
+
+                                                    <p className="font-semibold text-gray-950">
+                                                        QRIS
+                                                    </p>
+
+                                                    <p className="mt-1 pr-6 text-xs leading-5 text-gray-500">
+                                                        Bayar menggunakan QRIS melalui mobile banking
+                                                        atau e-wallet.
+                                                    </p>
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    aria-pressed={paymentMethod === "bca_va"}
+                                                    onClick={() =>
+                                                        setPaymentMethod("bca_va")
+                                                    }
+                                                    className={`relative rounded-2xl border-2 p-5 text-left transition ${paymentMethod === "bca_va"
+                                                            ? "border-[#BC002D] bg-red-50"
+                                                            : "border-gray-200 bg-white hover:border-gray-300"
+                                                        }`}
+                                                >
+                                                    {paymentMethod === "bca_va" && (
+                                                        <CheckCircle2 className="absolute right-4 top-4 h-5 w-5 text-[#BC002D]" />
+                                                    )}
+
+                                                    <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
+                                                        <Building2 className="h-5 w-5 text-blue-700" />
+                                                    </div>
+
+                                                    <p className="font-semibold text-gray-950">
+                                                        BCA Virtual Account
+                                                    </p>
+
+                                                    <p className="mt-1 pr-6 text-xs leading-5 text-gray-500">
+                                                        Bayar melalui myBCA, BCA Mobile, ATM,
+                                                        atau internet banking.
+                                                    </p>
+                                                </button>
                                             </div>
 
-                                            <div className="mt-1 text-sm text-muted-foreground">
-                                                Bayar ketika pesanan telah diterima.
+                                            <div className="mt-4 rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-500">
+                                                Metode dipilih:{" "}
+                                                <span className="font-medium text-gray-900">
+                                                    {paymentMethod === "qris"
+                                                        ? "QRIS"
+                                                        : "BCA Virtual Account"}
+                                                </span>
                                             </div>
-                                        </div>
-                                    </CardContent>
+                                        </CardContent>
+                                    </Card>
                                 </Card>
 
                                 {/* Notes */}
@@ -632,6 +717,11 @@ export default function BuyPage() {
                 }
                 buttonText="Selesai"
                 onClose={() => router.push("/")}
+            />
+
+            <PaymentInstructionModal
+                order={createdOrder}
+                onClose={() => router.push("/orders")}
             />
 
             <ErrorModal
