@@ -8,6 +8,8 @@ import { OrderProduct } from "@/types/order";
 import { StatusOrder } from "@/enums/order-status";
 import { ShipmentStatus } from "@/enums/shipment-status";
 import { toast } from "sonner";
+import { Payment } from "@/types/payment";
+import { QRCodeSVG } from "qrcode.react";
 
 /* ─── helpers ─── */
 const formatIDR = (n: number) =>
@@ -377,6 +379,102 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function ContinuePayment({
+  payment,
+}: {
+  payment: Payment;
+}) {
+  const expiredByTime =
+    payment.expires_at &&
+    new Date(payment.expires_at).getTime() <= Date.now();
+
+  const isExpired =
+    payment.payment_status === "expired" ||
+    expiredByTime;
+
+  if (
+    payment.payment_status !== "pending" ||
+    isExpired
+  ) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+      <div className="mb-4">
+        <p className="text-sm font-semibold text-zinc-900">
+          Lanjutkan pembayaran
+        </p>
+
+        <p className="mt-1 text-xs text-zinc-500">
+          Selesaikan pembayaran sebelum batas waktu berakhir.
+        </p>
+      </div>
+
+      {payment.payment_method === "qris" && (
+        payment.qr_string ? (
+          <div className="text-center">
+            <div className="inline-block rounded-2xl border bg-white p-4">
+              <QRCodeSVG
+                value={payment.qr_string}
+                size={180}
+                level="M"
+              />
+            </div>
+
+            <p className="mt-3 text-xs font-medium text-zinc-700">
+              Scan QRIS
+            </p>
+
+            <p className="mt-1 text-[11px] text-amber-700">
+              QRIS ini masih berupa simulasi pembayaran.
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-rose-600">
+            QR pembayaran belum tersedia.
+          </p>
+        )
+      )}
+
+      {payment.payment_method === "bca_va" && (
+        payment.va_number ? (
+          <div className="rounded-xl border bg-white p-4">
+            <p className="text-xs text-zinc-500">
+              Nomor BCA Virtual Account
+            </p>
+
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="break-all font-mono text-base font-semibold text-zinc-900">
+                {payment.va_number}
+              </p>
+
+              <CopyButton text={payment.va_number} />
+            </div>
+
+            <p className="mt-3 text-[11px] text-amber-700">
+              Nomor VA ini masih berupa simulasi pembayaran.
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-rose-600">
+            Nomor Virtual Account belum tersedia.
+          </p>
+        )
+      )}
+
+      {payment.expires_at && (
+        <p className="mt-4 text-center text-[11px] text-zinc-500">
+          Batas pembayaran:{" "}
+          <span className="font-medium text-zinc-700">
+            {formatDateTime(payment.expires_at)}
+          </span>
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ─── Card (pakai OrderProduct) ─── */
 function OrderCard({
   order,
@@ -494,6 +592,12 @@ function OrderCard({
           </div>
         </div>
       </button>
+
+      {order.payment && (
+        <ContinuePayment
+          payment={order.payment}
+        />
+      )}
 
       {expanded && (
         <div className="border-t border-zinc-100 px-4 pb-5 pt-4 sm:px-5">
