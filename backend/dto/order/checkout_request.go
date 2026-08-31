@@ -15,7 +15,7 @@ type CheckoutAddressRequest struct {
 type CheckoutRequest struct {
 	CartItemIDs   []int64                `json:"cart_item_ids" binding:"required,min=1,dive,gt=0"`
 	Address       CheckoutAddressRequest `json:"address" binding:"required"`
-	PaymentMethod string                 `json:"payment_method" binding:"required,oneof=cod"`
+	PaymentMethod string                 `json:"payment_method" binding:"required,oneof=qris bca_va"`
 }
 
 type CheckoutResponse struct {

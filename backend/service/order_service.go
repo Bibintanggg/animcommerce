@@ -2,6 +2,7 @@ package service
 
 import (
 	dto "animcommerce/backend/dto/order"
+	"animcommerce/backend/helper"
 	"animcommerce/backend/models"
 	"animcommerce/backend/models/enum"
 	"animcommerce/backend/repository"
@@ -97,6 +98,28 @@ func calculateShippingCost(subtotal int64) int64 {
 	}
 
 	return 25_000
+}
+
+func createInitialOrderHistory(
+	tx *gorm.DB,
+	order models.OrderProduct,
+) error {
+	history := models.OrderStatusHistory{
+		OrderID:        order.ID,
+		StatusOrder:    order.StatusOrder,
+		StatusShipment: order.StatusShipment,
+		Title:          "Pesanan berhasil dibuat",
+		Description:    "Pesanan dibuat dan sedang menunggu pembayaran.",
+	}
+
+	if err := tx.Create(&history).Error; err != nil {
+		return fmt.Errorf(
+			"gagal membuat riwayat pesanan: %w",
+			err,
+		)
+	}
+
+	return nil
 }
 
 func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, orderItemRepo repository.OrderItemRepository,
@@ -196,8 +219,13 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 		shippingCost := calculateShippingCost(subtotal)
 		grandTotal := subtotal + shippingCost
 
+		orderNumber, err := helper.GenerateOrder()
+		if err != nil {
+			return fmt.Errorf("Gagal memuat nomor pesanan: %w", err)
+		}
+
 		createdOrder = models.OrderProduct{
-			OrderNumber:  fmt.Sprintf("ORD-%d-%d", userID, time.Now().Unix()),
+			OrderNumber:  orderNumber,
 			UserID:       userID,
 			AddressID:    address.ID,
 			TotalPrice:   subtotal,
@@ -252,8 +280,8 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 			)
 		}
 
-		if err := tx.Create(&payment).Error; err != nil {
-			return fmt.Errorf("gagal membuat payment: %w", err)
+		if err := createInitialOrderHistory(tx, createdOrder); err != nil {
+			return err
 		}
 
 		// Hanya menghapus item yang dipilih customer.
@@ -272,6 +300,7 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 			ShippingCost:  shippingCost,
 			GrandTotal:    grandTotal,
 			PaymentMethod: req.PaymentMethod,
+			Payment:       mapPaymentInstruction(payment),
 		}
 
 		return nil
@@ -346,13 +375,13 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 		}
 
 		grandTotal := subtotal + shippingCost
+		orderNumber, err := helper.GenerateOrder()
+		if err != nil {
+			return fmt.Errorf("Gagal memuat nomor pesanan: %w", err)
+		}
 
 		createdOrder = models.OrderProduct{
-			OrderNumber: fmt.Sprintf(
-				"ORD-%d-%d",
-				userID,
-				time.Now().UnixNano(),
-			),
+			OrderNumber:    orderNumber,
 			UserID:         userID,
 			AddressID:      address.ID,
 			TotalPrice:     subtotal,
@@ -395,11 +424,13 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 			return err
 		}
 
-		payment := models.Payment{
-			OrderID:       createdOrder.ID,
-			PaymentMethod: request.PaymentMethod,
-			Amount:        grandTotal,
-			PaymentStatus: enum.PaymentPending,
+		payment, err := buildDummyPayment(
+			createdOrder,
+			grandTotal,
+			request.PaymentMethod,
+		)
+		if err != nil {
+			return err
 		}
 
 		if err := tx.Create(&payment).Error; err != nil {
@@ -407,6 +438,10 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 				"gagal membuat payment: %w",
 				err,
 			)
+		}
+
+		if err := createInitialOrderHistory(tx, createdOrder); err != nil {
+			return err
 		}
 
 		response = dto.CheckoutResponse{
