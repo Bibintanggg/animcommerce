@@ -436,23 +436,6 @@ export default function BuyPage() {
 
                                 {/* Payment */}
                                 <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-lg">
-                                            <Badge
-                                                variant="secondary"
-                                                className="flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
-                                            >
-                                                3
-                                            </Badge>
-
-                                            Metode Pembayaran
-                                        </CardTitle>
-
-                                        <CardDescription>
-                                            Metode pembayaran yang tersedia.
-                                        </CardDescription>
-                                    </CardHeader>
-
                                     {/* Payment */}
                                     <Card>
                                         <CardHeader>

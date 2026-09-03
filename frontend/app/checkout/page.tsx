@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import SuccessModal from "@/components/SuccessModal";
 import ErrorModal from "@/components/ErrorModal";
 import { checkoutCart } from "@/services/order.service";
+import { PaymentMethod } from "@/types/checkout";
 
 interface CheckoutAddress {
     receiver_name: string;
@@ -72,6 +73,7 @@ function formatRupiah(value: number) {
 export default function CartCheckoutPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("qris")
 
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [selectionLoaded, setSelectionLoaded] = useState(false);
@@ -168,6 +170,7 @@ export default function CartCheckoutPage() {
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (checkoutMutation.isPending) return
         setErrorMessage("");
 
         if (selectedItems.length === 0) {
@@ -178,7 +181,7 @@ export default function CartCheckoutPage() {
         checkoutMutation.mutate({
             cart_item_ids: selectedItems.map((item) => item.id),
             address,
-            payment_method: "cod",
+            payment_method: paymentMethod,
         });
     };
 
@@ -460,33 +463,70 @@ export default function CartCheckoutPage() {
 
                                 {/* Payment */}
                                 <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-lg">
-                                            <Badge
-                                                variant="secondary"
-                                                className="flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
-                                            >
-                                                3
-                                            </Badge>
-
-                                            Metode Pembayaran
-                                        </CardTitle>
-
-                                        <CardDescription>
-                                            Metode pembayaran yang tersedia.
-                                        </CardDescription>
-                                    </CardHeader>
-
                                     <CardContent>
-                                        <div className="rounded-lg border-2 border-primary bg-accent/30 p-4">
-                                            <div className="font-medium">
-                                                COD (Bayar di Tempat)
-                                            </div>
+                                        <fieldset
+                                            disabled={checkoutMutation.isPending}
+                                            className="space-y-3"
+                                        >
+                                            <legend className="sr-only">
+                                                Pilih metode pembayaran
+                                            </legend>
 
-                                            <div className="mt-1 text-sm text-muted-foreground">
-                                                Bayar ketika pesanan telah diterima.
-                                            </div>
-                                        </div>
+                                            <label
+                                                className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 ${paymentMethod === "qris"
+                                                    ? "border-primary bg-accent/30"
+                                                    : "border-border"
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="payment_method"
+                                                    value="qris"
+                                                    checked={paymentMethod === "qris"}
+                                                    onChange={() => setPaymentMethod("qris")}
+                                                    className="h-4 w-4"
+                                                />
+
+                                                <span>
+                                                    <span className="block font-medium">
+                                                        QRIS
+                                                    </span>
+                                                    <span className="block text-sm text-muted-foreground">
+                                                        Tampilkan kode QR setelah checkout.
+                                                    </span>
+                                                </span>
+                                            </label>
+
+                                            <label
+                                                className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 ${paymentMethod === "bca_va"
+                                                    ? "border-primary bg-accent/30"
+                                                    : "border-border"
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="payment_method"
+                                                    value="bca_va"
+                                                    checked={paymentMethod === "bca_va"}
+                                                    onChange={() => setPaymentMethod("bca_va")}
+                                                    className="h-4 w-4"
+                                                />
+
+                                                <span>
+                                                    <span className="block font-medium">
+                                                        BCA Virtual Account
+                                                    </span>
+                                                    <span className="block text-sm text-muted-foreground">
+                                                        Tampilkan nomor VA setelah checkout.
+                                                    </span>
+                                                </span>
+                                            </label>
+
+                                            <p className="text-xs text-amber-700">
+                                                Pembayaran masih simulasi. Jangan melakukan transfer
+                                                menggunakan QR atau nomor VA dummy.
+                                            </p>
+                                        </fieldset>
                                     </CardContent>
                                 </Card>
                             </div>
