@@ -4,3 +4,4 @@ storage/*
 !storage/images/*.go
 firebase-service-account.json
 *.service-account.json
+cmd/storage/invoices/
