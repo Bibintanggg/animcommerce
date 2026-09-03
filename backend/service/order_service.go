@@ -6,9 +6,11 @@ import (
 	"animcommerce/backend/models"
 	"animcommerce/backend/models/enum"
 	"animcommerce/backend/repository"
+	"context"
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"time"
 
 	"gorm.io/gorm"
@@ -78,6 +80,7 @@ type OrderService interface {
 	GetOrderDetail(userID int64, orderID int64) (*models.OrderProduct, error)
 	GetAdminOrderDetail(orderID int64) (*models.OrderProduct, error)
 	UpdateOrderStatus(orderID int64, req dto.UpdateOrderStatusRequest) error
+	ExpireOrder(ctx context.Context, orderID int64, now time.Time) (bool, error)
 }
 
 type orderService struct {
@@ -242,7 +245,19 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 			return fmt.Errorf("gagal membuat order: %w", err)
 		}
 
+		sort.Slice(cartItems, func(i, j int) bool {
+			if cartItems[i].ProductID == cartItems[j].ProductID {
+				return cartItems[i].ID < cartItems[j].ID
+			}
+
+			return cartItems[i].ProductID < cartItems[j].ProductID
+		})
+
 		for _, item := range cartItems {
+			if err := s.productRepo.ReduceStock(
+				tx, item.ProductID, item.Quantity); err != nil {
+				return err
+			}
 			orderItem := models.OrderItem{
 				OrderID:   createdOrder.ID,
 				ProductID: item.ProductID,
@@ -254,13 +269,13 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 				return fmt.Errorf("gagal membuat order item: %w", err)
 			}
 
-			if err := s.productRepo.ReduceStock(
-				tx,
-				item.ProductID,
-				item.Quantity,
-			); err != nil {
-				return err
-			}
+			// if err := s.productRepo.ReduceStock(
+			// 	tx,
+			// 	item.ProductID,
+			// 	item.Quantity,
+			// ); err != nil {
+			// 	return err
+			// }
 		}
 
 		payment, err := buildDummyPayment(
@@ -398,6 +413,10 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 				"gagal membuat order: %w",
 				err,
 			)
+		}
+
+		if err := s.productRepo.ReduceStock(tx, product.ID, request.Quantity); err != nil {
+			return err
 		}
 
 		orderItem := models.OrderItem{

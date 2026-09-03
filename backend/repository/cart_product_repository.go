@@ -61,12 +61,12 @@ func (r *cartProductRepository) ClearCart(cartID int64) error {
 
 func (r *cartProductRepository) GetCartItemsByIDs(tx *gorm.DB, cartID int64, itemIDs []int64) ([]models.CartProduct, error) {
 	var items []models.CartProduct
-	err := tx.Preload("Product").Where("cart_id = ? AND IN ?", cartID, itemIDs).Find(&items).Error
+	err := tx.Preload("Product").Where("cart_id = ? AND id IN ?", cartID, itemIDs).Find(&items).Error
 	return items, err
 }
 
 func (r *cartProductRepository) DeleteCartItemsByIDs(tx *gorm.DB, cartID int64, itemIDs []int64) error {
-	result := tx.Where("cart_id = ? AND IN ?", cartID, itemIDs).Delete(&models.CartProduct{})
+	result := tx.Where("cart_id = ? AND id IN ?", cartID, itemIDs).Delete(&models.CartProduct{})
 	if result.Error != nil {
 		return result.Error
 	}

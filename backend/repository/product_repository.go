@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type ProductRepository interface {
@@ -28,6 +29,7 @@ type ProductRepository interface {
 	CreateProductSize(size *models.ProductSize) error
 	DeleteProductSize(productID int64) error
 	FindDiscountByCode(code string) (models.Discount, error)
+	RestoreStock(tx *gorm.DB, productID int64, qty int) error
 }
 
 type productRepository struct {
@@ -122,10 +124,14 @@ func (r *productRepository) LoadUser(product *models.Product) error {
 }
 
 func (r *productRepository) ReduceStock(tx *gorm.DB, productID int64, qty int) error {
+	if qty <= 0 {
+		return errors.New("Quantity produk harus lebih dari 0")
+	}
 
 	var product models.Product
 
 	if err := tx.
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", productID).
 		First(&product).Error; err != nil {
 		return err
@@ -141,7 +147,7 @@ func (r *productRepository) ReduceStock(tx *gorm.DB, productID int64, qty int) e
 	result := tx.
 		Model(&models.Product{}).
 		Where("id = ? AND stock >= ?", productID, qty).
-		Update("stock", newStock)
+		Update("stock", gorm.Expr("stock - ?", qty))
 
 	if result.Error != nil {
 		return result.Error
@@ -159,11 +165,7 @@ func (r *productRepository) ReduceStock(tx *gorm.DB, productID int64, qty int) e
 		StockAfter:  newStock,
 	}
 
-	if err := tx.Create(&movement).Error; err != nil {
-		return err
-	}
-
-	return nil
+	return tx.Create(&movement).Error
 }
 func (r *productRepository) CreateStockMovement(movement *models.StockMovement) error {
 	return r.db.Create(movement).Error
@@ -198,4 +200,47 @@ func (r *productRepository) FindDiscountByCode(code string) (models.Discount, er
 	err := r.db.Where("code = ?", code).First(&discount).Error
 
 	return discount, err
+}
+
+func (r *productRepository) RestoreStock(tx *gorm.DB, productID int64, qty int) error {
+	if qty <= 0 {
+		return errors.New("Restore quantity must be greater than zero")
+	}
+
+	var product models.Product
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", productID).First(&product).Error; err != nil {
+		return err
+	}
+
+	maxInt := int(^uint(0) >> 1)
+	if product.Stock > maxInt-qty {
+		return errors.New("Stock overflow")
+	}
+
+	oldStock := product.Stock
+	newStock := oldStock + qty
+
+	result := tx.
+		Model(&models.Product{}).
+		Where("id = ?", productID).
+		Update("stock", gorm.Expr("stock + ?", qty))
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected != 1 {
+		return errors.New("stock restore failed")
+	}
+
+	movement := models.StockMovement{
+		ProductID:   productID,
+		Type:        enum.StockIn,
+		Quantity:    qty,
+		StockBefore: oldStock,
+		StockAfter:  newStock,
+	}
+
+	// Simpan satu kali, menggunakan transaction yang sama.
+	return tx.Create(&movement).Error
 }
