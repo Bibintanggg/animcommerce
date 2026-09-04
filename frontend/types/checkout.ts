@@ -13,6 +13,7 @@ export interface PaymentInstruction {
   status: PaymentStatus;
   provider: string;
   qr_string?: string;
+  qr_url?: string;
   va_number?: string;
   expires_at?: string;
 }

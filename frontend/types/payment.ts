@@ -19,6 +19,7 @@ export interface Payment {
     external_reference: string;
 
     qr_string?: string;
+    qr_url?: string;
     va_number?: string;
 
     amount: number;

@@ -43,8 +43,12 @@ const formatShort = (date?: string | null) => {
 /** UI visual bucket dari status_shipment backend */
 type ShipmentVisual = "awaiting-pickup" | "transit" | "delivered";
 
-function toShipmentVisual(status?: ShipmentStatus | string | null): ShipmentVisual {
-  const s = String(status ?? "").toLowerCase().replace(/[\s-]+/g, "_");
+function toShipmentVisual(
+  status?: ShipmentStatus | string | null,
+): ShipmentVisual {
+  const s = String(status ?? "")
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
 
   if (
     ["delivered", "completed", "selesai", "diterima"].some((k) => s.includes(k))
@@ -52,9 +56,14 @@ function toShipmentVisual(status?: ShipmentStatus | string | null): ShipmentVisu
     return "delivered";
   }
   if (
-    ["transit", "shipped", "on_delivery", "on_the_way", "dikirim", "sending"].some(
-      (k) => s.includes(k)
-    )
+    [
+      "transit",
+      "shipped",
+      "on_delivery",
+      "on_the_way",
+      "dikirim",
+      "sending",
+    ].some((k) => s.includes(k))
   ) {
     return "transit";
   }
@@ -136,34 +145,46 @@ const shipmentMeta = {
   },
 } as const;
 
-const orderMeta: Record<
-  StatusOrder | string,
-  { label: string; cls: string }
-> = {
-  pending: {
-    label: "Menunggu",
-    cls: "text-amber-700 bg-amber-50 ring-amber-200",
-  },
-  processing: {
-    label: "Diproses",
-    cls: "text-sky-700 bg-sky-50 ring-sky-200",
-  },
-  cancelled: {
-    label: "Dibatalkan",
-    cls: "text-rose-700 bg-rose-50 ring-rose-200",
-  },
-  completed: {
-    label: "Selesai",
-    cls: "text-emerald-700 bg-emerald-50 ring-emerald-200",
-  },
-};
+const orderMeta: Record<StatusOrder | string, { label: string; cls: string }> =
+  {
+    pending: {
+      label: "Menunggu",
+      cls: "text-amber-700 bg-amber-50 ring-amber-200",
+    },
+    processing: {
+      label: "Diproses",
+      cls: "text-sky-700 bg-sky-50 ring-sky-200",
+    },
+    cancelled: {
+      label: "Dibatalkan",
+      cls: "text-rose-700 bg-rose-50 ring-rose-200",
+    },
+    completed: {
+      label: "Selesai",
+      cls: "text-emerald-700 bg-emerald-50 ring-emerald-200",
+    },
+  };
 
 /* ─── Icons ─── */
 function IconRocket({ className = "h-5 w-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
-      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+    >
+      <path
+        d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <path d="M9 12H4s.55-3.03 2-5c1.62-2.2 4-3 4-3" strokeLinecap="round" />
       <path d="M12 15v5s3.03-.55 5-2c2.2-1.62 3-4 3-4" strokeLinecap="round" />
     </svg>
@@ -172,7 +193,13 @@ function IconRocket({ className = "h-5 w-5" }: { className?: string }) {
 
 function IconTruck({ className = "h-5 w-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+    >
       <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
       <path d="M15 18H9" />
       <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
@@ -184,7 +211,13 @@ function IconTruck({ className = "h-5 w-5" }: { className?: string }) {
 
 function IconCheck({ className = "h-5 w-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" className={className}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      className={className}
+    >
       <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -192,7 +225,13 @@ function IconCheck({ className = "h-5 w-5" }: { className?: string }) {
 
 function IconPackage({ className = "h-5 w-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+    >
       <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
       <path d="m3.3 7 8.7 5 8.7-5M12 22V12" />
     </svg>
@@ -201,7 +240,13 @@ function IconPackage({ className = "h-5 w-5" }: { className?: string }) {
 
 function IconCopy({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className={className}
+    >
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
     </svg>
@@ -210,7 +255,13 @@ function IconCopy({ className = "h-3.5 w-3.5" }: { className?: string }) {
 
 function IconPhone({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className={className}
+    >
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
     </svg>
   );
@@ -219,44 +270,49 @@ function IconPhone({ className = "h-3.5 w-3.5" }: { className?: string }) {
 /* ─── Map ─── */
 const OrderMap = dynamic(
   () =>
-    import("react-leaflet").then(({ MapContainer, TileLayer, Marker, Popup }) => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const L = require("leaflet");
-      delete L.Icon.Default.prototype._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
+    import("react-leaflet").then(
+      ({ MapContainer, TileLayer, Marker, Popup }) => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const L = require("leaflet");
+        delete L.Icon.Default.prototype._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl:
+            "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+          iconUrl:
+            "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+          shadowUrl:
+            "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        });
 
-      return function Map({
-        lat,
-        lng,
-        label,
-      }: {
-        lat: number;
-        lng: number;
-        label: string;
-      }) {
-        return (
-          <MapContainer
-            center={[lat, lng]}
-            zoom={15}
-            scrollWheelZoom={false}
-            className="rounded-xl z-0"
-            style={{ height: 176, width: "100%" }}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <Marker position={[lat, lng]}>
-              <Popup>{label}</Popup>
-            </Marker>
-          </MapContainer>
-        );
-      };
-    }),
+        return function Map({
+          lat,
+          lng,
+          label,
+        }: {
+          lat: number;
+          lng: number;
+          label: string;
+        }) {
+          return (
+            <MapContainer
+              center={[lat, lng]}
+              zoom={15}
+              scrollWheelZoom={false}
+              className="rounded-xl z-0"
+              style={{ height: 176, width: "100%" }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <Marker position={[lat, lng]}>
+                <Popup>{label}</Popup>
+              </Marker>
+            </MapContainer>
+          );
+        };
+      },
+    ),
   {
     ssr: false,
     loading: () => (
@@ -264,7 +320,7 @@ const OrderMap = dynamic(
         Memuat peta…
       </div>
     ),
-  }
+  },
 );
 
 function StatusVisual({ status }: { status: ShipmentVisual }) {
@@ -272,16 +328,22 @@ function StatusVisual({ status }: { status: ShipmentVisual }) {
 
   if (status === "awaiting-pickup") {
     return (
-      <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${meta.bg} ring-1 ${meta.ring}`}>
+      <div
+        className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${meta.bg} ring-1 ${meta.ring}`}
+      >
         <div className="absolute inset-0 animate-ping rounded-xl bg-violet-400/20" />
-        <IconRocket className={`relative z-10 h-5 w-5 ${meta.color} animate-[float_2.4s_ease-in-out_infinite]`} />
+        <IconRocket
+          className={`relative z-10 h-5 w-5 ${meta.color} animate-[float_2.4s_ease-in-out_infinite]`}
+        />
       </div>
     );
   }
 
   if (status === "transit") {
     return (
-      <div className={`relative flex h-12 w-16 shrink-0 items-center overflow-hidden rounded-xl ${meta.bg} ring-1 ${meta.ring}`}>
+      <div
+        className={`relative flex h-12 w-16 shrink-0 items-center overflow-hidden rounded-xl ${meta.bg} ring-1 ${meta.ring}`}
+      >
         <div className="absolute bottom-1.5 left-1.5 right-1.5 h-px bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" />
         <div className="animate-[drive_2.8s_ease-in-out_infinite]">
           <IconTruck className={`ml-1.5 h-5 w-5 ${meta.color}`} />
@@ -291,7 +353,9 @@ function StatusVisual({ status }: { status: ShipmentVisual }) {
   }
 
   return (
-    <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${meta.bg} ring-1 ${meta.ring}`}>
+    <div
+      className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${meta.bg} ring-1 ${meta.ring}`}
+    >
       <div className="absolute inset-0 animate-[ping_1.8s_ease-out_infinite] rounded-xl bg-emerald-400/20" />
       <IconCheck className={`relative z-10 h-5 w-5 ${meta.color}`} />
     </div>
@@ -305,11 +369,24 @@ function Timeline({
   status: ShipmentVisual;
   cancelled?: boolean;
 }) {
-  const steps: { key: ShipmentVisual; label: string; icon: React.ReactNode }[] = [
-    { key: "awaiting-pickup", label: "Pickup", icon: <IconRocket className="h-3.5 w-3.5" /> },
-    { key: "transit", label: "Transit", icon: <IconTruck className="h-3.5 w-3.5" /> },
-    { key: "delivered", label: "Selesai", icon: <IconCheck className="h-3.5 w-3.5" /> },
-  ];
+  const steps: { key: ShipmentVisual; label: string; icon: React.ReactNode }[] =
+    [
+      {
+        key: "awaiting-pickup",
+        label: "Pickup",
+        icon: <IconRocket className="h-3.5 w-3.5" />,
+      },
+      {
+        key: "transit",
+        label: "Transit",
+        icon: <IconTruck className="h-3.5 w-3.5" />,
+      },
+      {
+        key: "delivered",
+        label: "Selesai",
+        icon: <IconCheck className="h-3.5 w-3.5" />,
+      },
+    ];
   const current = steps.findIndex((s) => s.key === status);
 
   if (cancelled) {
@@ -329,26 +406,32 @@ function Timeline({
           <div key={step.key} className="flex gap-3">
             <div className="flex flex-col items-center">
               <div
-                className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${done
-                  ? `${shipmentMeta[step.key].bar} text-white shadow-sm`
-                  : "bg-zinc-100 text-zinc-400"
-                  } ${active ? "scale-110 ring-4 ring-zinc-100" : ""}`}
+                className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${
+                  done
+                    ? `${shipmentMeta[step.key].bar} text-white shadow-sm`
+                    : "bg-zinc-100 text-zinc-400"
+                } ${active ? "scale-110 ring-4 ring-zinc-100" : ""}`}
               >
                 {step.icon}
               </div>
               {i < steps.length - 1 && (
                 <div
-                  className={`w-px min-h-[18px] flex-1 ${done && i < current ? "bg-zinc-300" : "bg-zinc-100"
-                    }`}
+                  className={`w-px min-h-[18px] flex-1 ${
+                    done && i < current ? "bg-zinc-300" : "bg-zinc-100"
+                  }`}
                 />
               )}
             </div>
             <div className={`pb-3.5 ${i === steps.length - 1 ? "pb-0" : ""}`}>
-              <p className={`text-sm font-medium ${done ? "text-zinc-800" : "text-zinc-400"}`}>
+              <p
+                className={`text-sm font-medium ${done ? "text-zinc-800" : "text-zinc-400"}`}
+              >
                 {step.label}
               </p>
               {active && (
-                <p className="mt-0.5 text-xs text-zinc-500">{shipmentMeta[status].sub}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {shipmentMeta[status].sub}
+                </p>
               )}
             </div>
           </div>
@@ -379,23 +462,13 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function ContinuePayment({
-  payment,
-}: {
-  payment: Payment;
-}) {
+function ContinuePayment({ payment }: { payment: Payment }) {
   const expiredByTime =
-    payment.expires_at &&
-    new Date(payment.expires_at).getTime() <= Date.now();
+    payment.expires_at && new Date(payment.expires_at).getTime() <= Date.now();
 
-  const isExpired =
-    payment.payment_status === "expired" ||
-    expiredByTime;
+  const isExpired = payment.payment_status === "expired" || expiredByTime;
 
-  if (
-    payment.payment_status !== "pending" ||
-    isExpired
-  ) {
+  if (payment.payment_status !== "pending" || isExpired) {
     return null;
   }
 
@@ -411,38 +484,41 @@ function ContinuePayment({
         </p>
       </div>
 
-      {payment.payment_method === "qris" && (
-        payment.qr_string ? (
+      {payment.payment_method === "qris" &&
+        (payment.qr_url ? (
           <div className="text-center">
             <div className="inline-block rounded-2xl border bg-white p-4">
-              <QRCodeSVG
-                value={payment.qr_string}
-                size={180}
-                level="M"
+              <img
+                src={payment.qr_url}
+                alt="QR Code"
+                width={180}
+                height={180}
               />
             </div>
+          </div>
+        ) : payment.qr_string ? (
+          <div className="text-center">
+            <div className="inline-block rounded-2xl border bg-white p-4">
+              <QRCodeSVG value={payment.qr_string} size={180} level="M" />
+            </div>
 
-            <p className="mt-3 text-xs font-medium text-zinc-700">
-              Scan QRIS
-            </p>
+            <p className="mt-3 text-xs font-medium text-zinc-700">Scan QRIS</p>
 
             <p className="mt-1 text-[11px] text-amber-700">
               QRIS ini masih berupa simulasi pembayaran.
             </p>
           </div>
+          
         ) : (
           <p className="text-xs text-rose-600">
-            QR pembayaran belum tersedia.
+            QRIS belum tersedia. Silakan hubungi admin untuk bantuan.
           </p>
-        )
-      )}
+        ))}
 
-      {payment.payment_method === "bca_va" && (
-        payment.va_number ? (
+      {payment.payment_method === "bca_va" &&
+        (payment.va_number ? (
           <div className="rounded-xl border bg-white p-4">
-            <p className="text-xs text-zinc-500">
-              Nomor BCA Virtual Account
-            </p>
+            <p className="text-xs text-zinc-500">Nomor BCA Virtual Account</p>
 
             <div className="mt-2 flex items-center justify-between gap-3">
               <p className="break-all font-mono text-base font-semibold text-zinc-900">
@@ -460,8 +536,7 @@ function ContinuePayment({
           <p className="text-xs text-rose-600">
             Nomor Virtual Account belum tersedia.
           </p>
-        )
-      )}
+        ))}
 
       {payment.expires_at && (
         <p className="mt-4 text-center text-[11px] text-zinc-500">
@@ -504,13 +579,14 @@ function OrderCard({
 
   const recipient =
     order.user_address?.receiver_name ?? order.user?.name ?? "—";
-  const address = [
-    order.user_address?.address_line,
-    order.user_address?.city,
-    order.user_address?.postal_code,
-  ]
-    .filter(Boolean)
-    .join(", ") || "Alamat belum tersedia";
+  const address =
+    [
+      order.user_address?.address_line,
+      order.user_address?.city,
+      order.user_address?.postal_code,
+    ]
+      .filter(Boolean)
+      .join(", ") || "Alamat belum tersedia";
 
   const itemNames = (order.items ?? [])
     .map((i) => i.product?.title ?? `Produk #${i.product_id}`)
@@ -522,10 +598,11 @@ function OrderCard({
 
   return (
     <article
-      className={`rounded-2xl border bg-white transition-all duration-300 ${expanded
-        ? "border-zinc-200 shadow-md shadow-zinc-200/60"
-        : "border-zinc-200/80 hover:border-zinc-300 hover:shadow-sm"
-        }`}
+      className={`rounded-2xl border bg-white transition-all duration-300 ${
+        expanded
+          ? "border-zinc-200 shadow-md shadow-zinc-200/60"
+          : "border-zinc-200/80 hover:border-zinc-300 hover:shadow-sm"
+      }`}
     >
       <button
         type="button"
@@ -568,7 +645,9 @@ function OrderCard({
 
           {!expanded && history[0] && (
             <p className="mt-2 line-clamp-1 text-[12px] text-zinc-400">
-              <span className="font-medium text-zinc-500">{history[0].title}</span>
+              <span className="font-medium text-zinc-500">
+                {history[0].title}
+              </span>
               {history[0].desc ? ` · ${history[0].desc}` : ""}
               <span className="ml-1.5 text-zinc-300">· {history[0].time}</span>
             </p>
@@ -583,21 +662,28 @@ function OrderCard({
             {formatDateTime(order.updated_at)}
           </p>
           <div
-            className={`mt-0.5 text-zinc-400 transition-transform duration-300 ${expanded ? "rotate-180" : ""
-              }`}
+            className={`mt-0.5 text-zinc-400 transition-transform duration-300 ${
+              expanded ? "rotate-180" : ""
+            }`}
           >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </div>
         </div>
       </button>
 
-      {order.payment && (
-        <ContinuePayment
-          payment={order.payment}
-        />
-      )}
+      {order.payment && <ContinuePayment payment={order.payment} />}
 
       {expanded && (
         <div className="border-t border-zinc-100 px-4 pb-5 pt-4 sm:px-5">
@@ -639,8 +725,11 @@ function OrderCard({
                     history.map((ev, i) => (
                       <div
                         key={i}
-                        className={`flex gap-3 px-3 py-2.5 ${i !== history.length - 1 ? "border-b border-zinc-100" : ""
-                          }`}
+                        className={`flex gap-3 px-3 py-2.5 ${
+                          i !== history.length - 1
+                            ? "border-b border-zinc-100"
+                            : ""
+                        }`}
                       >
                         <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300" />
                         <div className="min-w-0 flex-1">
@@ -653,7 +742,9 @@ function OrderCard({
                             </span>
                           </div>
                           {ev.desc && (
-                            <p className="mt-0.5 text-xs text-zinc-500">{ev.desc}</p>
+                            <p className="mt-0.5 text-xs text-zinc-500">
+                              {ev.desc}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -701,7 +792,8 @@ function OrderCard({
                         </div>
                         <div className="min-w-0">
                           <p className="truncate font-medium text-zinc-800">
-                            {item.product?.title ?? `Produk #${item.product_id}`}
+                            {item.product?.title ??
+                              `Produk #${item.product_id}`}
                           </p>
                           <p className="text-xs text-zinc-400">
                             Qty {item.quantity}
@@ -731,7 +823,8 @@ function OrderCard({
                   <div className="flex justify-between text-zinc-500">
                     <span>Pembayaran</span>
                     <span className="uppercase text-xs font-medium">
-                      {order.payment.payment_method} · {order.payment.payment_status}
+                      {order.payment.payment_method} ·{" "}
+                      {order.payment.payment_status}
                     </span>
                   </div>
                 )}
@@ -784,7 +877,9 @@ function OrderCard({
 /* ─── Page ─── */
 export default function OrdersPage() {
   const [openId, setOpenId] = useState<number | null>(null);
-  const [filter, setFilter] = useState<"all" | ShipmentVisual | "cancelled">("all");
+  const [filter, setFilter] = useState<"all" | ShipmentVisual | "cancelled">(
+    "all",
+  );
   const [mounted, setMounted] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
@@ -819,19 +914,19 @@ export default function OrdersPage() {
       "awaiting-pickup": orders.filter(
         (o) =>
           toShipmentVisual(o.status_shipment) === "awaiting-pickup" &&
-          o.status_order !== "cancelled"
+          o.status_order !== "cancelled",
       ).length,
       transit: orders.filter(
         (o) =>
           toShipmentVisual(o.status_shipment) === "transit" &&
-          o.status_order !== "cancelled"
+          o.status_order !== "cancelled",
       ).length,
       delivered: orders.filter(
-        (o) => toShipmentVisual(o.status_shipment) === "delivered"
+        (o) => toShipmentVisual(o.status_shipment) === "delivered",
       ).length,
       cancelled: orders.filter((o) => o.status_order === "cancelled").length,
     }),
-    [orders]
+    [orders],
   );
 
   const handleDownloadInvoice = async (order: OrderProduct) => {
@@ -858,13 +953,24 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
       <style jsx global>{`
         @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-3px); }
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-3px);
+          }
         }
         @keyframes drive {
-          0% { transform: translateX(-6px); }
-          50% { transform: translateX(22px); }
-          100% { transform: translateX(-6px); }
+          0% {
+            transform: translateX(-6px);
+          }
+          50% {
+            transform: translateX(22px);
+          }
+          100% {
+            transform: translateX(-6px);
+          }
         }
         .leaflet-container {
           font-family: inherit;
@@ -895,13 +1001,16 @@ export default function OrdersPage() {
               key={key}
               type="button"
               onClick={() => setFilter(key)}
-              className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${filter === key
-                ? "bg-zinc-900 text-white"
-                : "bg-white text-zinc-500 ring-1 ring-zinc-200 hover:text-zinc-800"
-                }`}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                filter === key
+                  ? "bg-zinc-900 text-white"
+                  : "bg-white text-zinc-500 ring-1 ring-zinc-200 hover:text-zinc-800"
+              }`}
             >
               {label}
-              <span className="ml-1.5 tabular-nums opacity-60">{counts[key]}</span>
+              <span className="ml-1.5 tabular-nums opacity-60">
+                {counts[key]}
+              </span>
             </button>
           ))}
         </div>
