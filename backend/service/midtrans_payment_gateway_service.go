@@ -5,7 +5,6 @@ import (
 	"animcommerce/backend/models/enum"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -38,8 +37,7 @@ func (g *MidtransPaymentGateway) CreatePayment(input CreatePaymentInput) (models
 		return models.Payment{}, errors.New("ID order tidak valid")
 	}
 
-	amount, err := strconv.ParseFloat(strings.TrimSpace(input.Amount), 64)
-	if err != nil || amount <= 0 {
+	if input.Amount <= 0 {
 		return models.Payment{}, errors.New("Jumlah pembayaran harus lebih dari 0")
 	}
 
@@ -47,7 +45,7 @@ func (g *MidtransPaymentGateway) CreatePayment(input CreatePaymentInput) (models
 	request := &coreapi.ChargeReq{
 		TransactionDetails: midtrans.TransactionDetails{
 			OrderID:  input.OrderNumber,
-			GrossAmt: int64(amount),
+			GrossAmt: input.Amount,
 		},
 
 		CustomExpiry: &coreapi.CustomExpiry{
@@ -63,7 +61,7 @@ func (g *MidtransPaymentGateway) CreatePayment(input CreatePaymentInput) (models
 			Acquirer: "gopay",
 		}
 
-	case "bca":
+	case "bca_va":
 		request.PaymentType = coreapi.PaymentTypeBankTransfer
 		request.BankTransfer = &coreapi.BankTransferDetails{
 			Bank: midtrans.BankBca,
@@ -88,13 +86,14 @@ func (g *MidtransPaymentGateway) CreatePayment(input CreatePaymentInput) (models
 		PaymentStatus:     enum.PaymentPending,
 		Provider:          "midtrans",
 		ExternalReference: response.TransactionID,
-		Amount:            int64(amount),
+		Amount:            input.Amount,
 		ExpiresAt:         &expiresAt,
 	}
 
 	switch input.Method {
 	case "qris":
 		payment.QRURL = findMidtransQRURL(response.Actions)
+		payment.QRString = response.QRString
 
 		if payment.QRURL == "" {
 			return models.Payment{}, errors.New(
@@ -102,7 +101,7 @@ func (g *MidtransPaymentGateway) CreatePayment(input CreatePaymentInput) (models
 			)
 		}
 
-	case "bca":
+	case "bca_va":
 		payment.VANumber = findBCAVANumber(response.VaNumbers)
 
 		if payment.VANumber == "" {
@@ -140,4 +139,32 @@ func findBCAVANumber(vaNumbers []coreapi.VANumber) string {
 	}
 
 	return ""
+}
+
+func (g *MidtransPaymentGateway) GetPaymentStatus(orderNumber string) (PaymentStatusResult, error) {
+	orderNumber = strings.TrimSpace(orderNumber)
+	if g == nil || g.client == nil {
+		return PaymentStatusResult{}, errors.New("Midtrans client belum diinisialisasi")
+	}
+
+	if orderNumber == "" {
+		return PaymentStatusResult{}, errors.New("Nomor order wajib diisi")
+	}
+
+	response, midtransError := g.client.CheckTransaction(orderNumber)
+	if midtransError != nil {
+		return PaymentStatusResult{}, fmt.Errorf("Gagal memeriksa transaksi midtrans", midtransError)
+	}
+
+	if response == nil {
+		return PaymentStatusResult{}, errors.New("Response status midtrans kosong")
+	}
+
+	return PaymentStatusResult{
+		OrderNumber:       response.OrderID,
+		TransactionID:     response.TransactionID,
+		TransactionStatus: response.TransactionStatus,
+		FraudStatus:       response.FraudStatus,
+		GrossAmount:       response.GrossAmount,
+	}, nil
 }

@@ -18,6 +18,12 @@ func NewMidtransCoreClient() (*coreapi.Client, error) {
 
 	client := &coreapi.Client{}
 	client.New(serverKey, midtrans.Sandbox)
+
+	notificationURL := strings.TrimSpace(os.Getenv("MIDTRANS_NOTIFICATION_URL"))
+	if notificationURL != "" {
+		client.Options.SetPaymentOverrideNotification(notificationURL)
+	}
+
 	return client, nil
 
 }

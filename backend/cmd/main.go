@@ -75,6 +75,13 @@ func main() {
 	fcmDeviceRepository :=
 		repository.NewFCMDeviceRepository(db)
 
+	midtransClient, err := config.NewMidtransCoreClient()
+	if err != nil {
+		log.Fatalf("Failed to initialize Midtrans: %v", err)
+	}
+
+	paymentGateway := service.NewMidtransPaymentGateway(midtransClient)
+
 	pushNotificationService :=
 		service.NewPushNotificationService(
 			firebaseMessagingClient,
@@ -93,6 +100,7 @@ func main() {
 		cld,
 		pushNotificationService,
 		fcmDeviceHandler,
+		paymentGateway,
 	)
 
 	// orderService := routes.SetupRoutes(

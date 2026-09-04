@@ -20,7 +20,7 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary, pushNotificationService service.PushNotificationService,
-	fcmDeviceHandler *handler.FCMDeviceHandler) service.OrderService {
+	fcmDeviceHandler *handler.FCMDeviceHandler, paymentGateway service.PaymentGateway) service.OrderService {
 	storage := images.NewCloudinaryStorage(cld)
 
 	loginRepository := repository.NewLoginRepository(db)
@@ -70,6 +70,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary, pushNot
 			notificationHub,
 		)
 
+	paymentWebhookService := service.NewPaymentWebhookService(db, paymentGateway)
+	paymentWebhookHandler := handler.NewPaymentWebhookHandler(paymentWebhookService)
+
 	orderRepository := repository.NewOrderRepository(db)
 	invoiceService := service.NewInvoiceService(orderRepository, db)
 	orderItemRepository := repository.NewOrderItemRepository(db)
@@ -84,11 +87,13 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary, pushNot
 		productRepository,
 		addressRepository,
 		invoiceService,
+		paymentGateway,
 	)
 	orderHandler := handler.NewOrderHandler(orderService, notificationService)
 
 	api := r.Group("/api")
 	{
+		api.POST("/payments/midtrans/notification", paymentWebhookHandler.MidtransNotification)
 		publicAPI := api.Group("")
 		publicAPI.Use(middleware.RateLimit(10, 1*time.Minute))
 		publicRoute := public.NewPublicRoute(publicAPI, loginHandler, registerHandler)

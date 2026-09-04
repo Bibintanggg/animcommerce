@@ -16,49 +16,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// helper
-func buildDummyPayment(
-	order models.OrderProduct,
-	amount int64,
-	method string,
-) (models.Payment, error) {
-	expiresAt := time.Now().Add(24 * time.Hour)
-
-	payment := models.Payment{
-		OrderID:           order.ID,
-		PaymentMethod:     method,
-		PaymentStatus:     enum.PaymentPending,
-		Amount:            amount,
-		Provider:          "dummy",
-		ExternalReference: "DUMMY-" + order.OrderNumber,
-		ExpiresAt:         &expiresAt,
-	}
-
-	switch method {
-	case "qris":
-		// Ini hanya teks demo yang nanti dibuat menjadi QR.
-		payment.QRString = fmt.Sprintf(
-			"ANIMCOMMERCE-DEMO|ORDER=%s|AMOUNT=%d",
-			order.OrderNumber,
-			amount,
-		)
-
-	case "bca_va":
-		// Sengaja bukan nomor VA sungguhan.
-		payment.VANumber = fmt.Sprintf(
-			"DEMO-BCA-%06d",
-			order.ID,
-		)
-
-	default:
-		return payment, errors.New(
-			"metode pembayaran tidak didukung",
-		)
-	}
-
-	return payment, nil
-}
-
 func mapPaymentInstruction(
 	payment models.Payment,
 ) dto.PaymentInstructionResponse {
@@ -94,6 +51,7 @@ type orderService struct {
 	productRepo     repository.ProductRepository
 	addressRepo     repository.UserAddressRepository
 	invoiceService  InvoiceService
+	paymentGateway  PaymentGateway
 }
 
 // helper
@@ -129,7 +87,7 @@ func createInitialOrderHistory(
 
 func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, orderItemRepo repository.OrderItemRepository,
 	cartRepo repository.CartRepository, cartProductRepo repository.CartProductRepository, productRepo repository.ProductRepository,
-	addressRepo repository.UserAddressRepository, invoiceService InvoiceService) OrderService {
+	addressRepo repository.UserAddressRepository, invoiceService InvoiceService, paymentGateway PaymentGateway) OrderService {
 	return &orderService{
 		db:            db,
 		orderRepo:     orderRepo,
@@ -141,6 +99,7 @@ func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, orderIte
 		productRepo:    productRepo,
 		addressRepo:    addressRepo,
 		invoiceService: invoiceService,
+		paymentGateway: paymentGateway,
 	}
 }
 
@@ -280,10 +239,23 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 			}
 		}
 
-		payment, err := buildDummyPayment(
-			createdOrder,
-			grandTotal,
-			req.PaymentMethod,
+		// payment, err := buildDummyPayment(
+		// 	createdOrder,
+		// 	grandTotal,
+		// 	req.PaymentMethod,
+		// )
+
+		if s.paymentGateway == nil {
+			return errors.New("Payment gateway belum diinisialisasi")
+		}
+
+		payment, err := s.paymentGateway.CreatePayment(
+			CreatePaymentInput{
+				OrderID:     createdOrder.ID,
+				OrderNumber: createdOrder.OrderNumber,
+				Amount:      grandTotal,
+				Method:      req.PaymentMethod,
+			},
 		)
 
 		if err != nil {
@@ -445,11 +417,25 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 			return err
 		}
 
-		payment, err := buildDummyPayment(
-			createdOrder,
-			grandTotal,
-			request.PaymentMethod,
+		// payment, err := buildDummyPayment(
+		// 	createdOrder,
+		// 	grandTotal,
+		// 	request.PaymentMethod,
+		// )
+
+		if s.paymentGateway == nil {
+			return errors.New("Payment gateway belum diinisialisasi")
+		}
+
+		payment, err := s.paymentGateway.CreatePayment(
+			CreatePaymentInput{
+				OrderID:     createdOrder.ID,
+				OrderNumber: createdOrder.OrderNumber,
+				Amount:      grandTotal,
+				Method:      request.PaymentMethod,
+			},
 		)
+
 		if err != nil {
 			return err
 		}
