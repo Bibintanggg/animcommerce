@@ -69,6 +69,7 @@ func mapPaymentInstruction(
 		QRString:  payment.QRString,
 		VANumber:  payment.VANumber,
 		ExpiresAt: payment.ExpiresAt,
+		QRURL:     payment.QRURL,
 	}
 }
 
@@ -81,6 +82,7 @@ type OrderService interface {
 	GetAdminOrderDetail(orderID int64) (*models.OrderProduct, error)
 	UpdateOrderStatus(orderID int64, req dto.UpdateOrderStatusRequest) error
 	ExpireOrder(ctx context.Context, orderID int64, now time.Time) (bool, error)
+	ExpirePendingOrder(ctx context.Context, now time.Time, limit int) (OrderExpiryBatchResult, error)
 }
 
 type orderService struct {
@@ -269,13 +271,13 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 				return fmt.Errorf("gagal membuat order item: %w", err)
 			}
 
-			// if err := s.productRepo.ReduceStock(
-			// 	tx,
-			// 	item.ProductID,
-			// 	item.Quantity,
-			// ); err != nil {
-			// 	return err
-			// }
+			if err := s.productRepo.ReduceStock(
+				tx,
+				item.ProductID,
+				item.Quantity,
+			); err != nil {
+				return err
+			}
 		}
 
 		payment, err := buildDummyPayment(

@@ -7,6 +7,7 @@ import (
 	"animcommerce/backend/helper"
 	"animcommerce/backend/repository"
 	"animcommerce/backend/routes"
+	"animcommerce/backend/scheduler"
 	"animcommerce/backend/service"
 	"context"
 	"log"
@@ -86,13 +87,32 @@ func main() {
 			fcmDeviceRepository,
 		)
 
-	routes.SetupRoutes(
+	orderService := routes.SetupRoutes(
 		r,
 		db,
 		cld,
 		pushNotificationService,
 		fcmDeviceHandler,
 	)
+
+	// orderService := routes.SetupRoutes(
+	// 	r, db, cld, pushNotificationService, fcmDeviceHandler,
+	// )
+
+	expiryScheduler, err := scheduler.NewOrderExpiryScheduler(
+		orderService,
+		1*time.Minute,
+		100,
+	)
+
+	if err != nil {
+		log.Fatalf("failed to initialize order expiry scheduler: %v", err)
+	}
+
+	schedulerContext, stopScheduler := context.WithCancel(context.Background())
+	defer stopScheduler()
+
+	go expiryScheduler.Run(schedulerContext)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)

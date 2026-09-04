@@ -20,7 +20,7 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary, pushNotificationService service.PushNotificationService,
-	fcmDeviceHandler *handler.FCMDeviceHandler) {
+	fcmDeviceHandler *handler.FCMDeviceHandler) service.OrderService {
 	storage := images.NewCloudinaryStorage(cld)
 
 	loginRepository := repository.NewLoginRepository(db)
@@ -142,4 +142,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary, pushNot
 			superadmin.NewDashboardRoute(superadminGroup, dashboardHandler).Register()
 		}
 	}
+
+	return orderService
 }

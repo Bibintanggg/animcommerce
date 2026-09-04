@@ -3,6 +3,10 @@ package repository
 import (
 	dto "animcommerce/backend/dto/order"
 	"animcommerce/backend/models"
+	"animcommerce/backend/models/enum"
+	"context"
+	"errors"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -13,6 +17,7 @@ type OrderRepository interface {
 	FindByID(id int64) (*models.OrderProduct, error)
 	FindByUserID(userID int64) ([]models.OrderProduct, error)
 	Update(order *models.OrderProduct) error
+	FindExpiredPendingOrderIDs(ctx context.Context, now time.Time, limit int) ([]int64, error)
 }
 
 type orderRepository struct {
@@ -85,4 +90,56 @@ func (r *orderRepository) GetAllOrders(filter dto.OrderFilter) ([]models.OrderPr
 		Find(&orders).Error
 
 	return orders, total, err
+}
+
+func (r *orderRepository) FindExpiredPendingOrderIDs(ctx context.Context, now time.Time, limit int) ([]int64, error) {
+	if ctx == nil {
+		return nil, errors.New("Context tidak boleh nil")
+	}
+
+	if now.IsZero() {
+		return nil, errors.New("Waktu pencarian expiry tidak valid")
+	}
+
+	if limit <= 0 || limit > 500 {
+		return nil, errors.New("Limit harus berada diantara 1 dan 500")
+	}
+
+	var orderIDs []int64
+	err := r.db.
+		WithContext(ctx).
+		Model(&models.OrderProduct{}).
+		Select("order_products.id").
+		Joins(
+			"JOIN payments ON payments.order_id = order_products.id",
+		).
+		Where(
+			"order_products.status_order = ?",
+			enum.OrderPending,
+		).
+		Where(
+			"order_products.status_shipment = ?",
+			enum.ShipmentAwaitingPickup,
+		).
+		Where("order_products.shipped_at IS NULL").
+		Where("order_products.completed_at IS NULL").
+		Where("payments.provider = ?", "dummy").
+		Where(
+			"payments.payment_status = ?",
+			enum.PaymentPending,
+		).
+		Where("payments.paid_at IS NULL").
+		Where("payments.expires_at IS NOT NULL").
+		Where("payments.expires_at <= ?", now).
+		Order("payments.expires_at ASC").
+		Order("order_products.id ASC").
+		Limit(limit).
+		Pluck("order_products.id", &orderIDs).
+		Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return orderIDs, err
 }

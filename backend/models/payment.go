@@ -17,6 +17,7 @@ type Payment struct {
 	Amount            int64              `gorm:"not null" json:"amount"`
 	ExpiresAt         *time.Time         `json:"expires_at,omitempty"`
 	PaidAt            *time.Time         `json:"paid_at,omitempty"`
+	QRURL             string             `gorm:"type:text" json:"qr_url,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

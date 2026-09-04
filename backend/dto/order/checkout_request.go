@@ -35,4 +35,5 @@ type PaymentInstructionResponse struct {
 	QRString  string     `json:"qr_string,omitempty"`
 	VANumber  string     `json:"va_number,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	QRURL     string     `json:"qr_url,omitempty"`
 }
