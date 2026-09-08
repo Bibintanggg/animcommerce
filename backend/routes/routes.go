@@ -70,7 +70,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary, pushNot
 			notificationHub,
 		)
 
-	paymentWebhookService := service.NewPaymentWebhookService(db, paymentGateway)
+	paymentWebhookService := service.NewPaymentWebhookService(db, paymentGateway, productRepository)
 	paymentWebhookHandler := handler.NewPaymentWebhookHandler(paymentWebhookService)
 
 	orderRepository := repository.NewOrderRepository(db)

@@ -9,5 +9,6 @@ type UpdateProductRequest struct {
 	Category    string `form:"category"`
 	IsFeatured  bool   `form:"is_featured"`
 	Discount    string `form:"discount"`
-	Sizes        string `form:"sizes"`
+	Sizes       string `form:"sizes"`
+	Weight      *int64 `json:"weight" binding:"omitempty,min=1"`
 }

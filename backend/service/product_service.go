@@ -125,6 +125,7 @@ func (s *productService) CreateProduct(userID int64, request dto.CreateProductRe
 		IsActive:    enum.ProductStatus(request.IsActive),
 		Category:    enum.ProductCategory(request.Category),
 		IsFeatured:  request.IsFeatured,
+		Weight:      request.Weight,
 	}
 
 	if err := s.repo.Create(&product); err != nil {
@@ -275,6 +276,10 @@ func (s *productService) UpdateProduct(id int64, request dto.UpdateProductReques
 	}
 	if err := s.repo.Update(&product); err != nil {
 		return models.Product{}, err
+	}
+
+	if request.Weight != nil {
+		product.Weight = *request.Weight
 	}
 
 	if request.Discount != "" {

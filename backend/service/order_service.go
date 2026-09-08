@@ -229,14 +229,6 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 			if err := tx.Create(&orderItem).Error; err != nil {
 				return fmt.Errorf("gagal membuat order item: %w", err)
 			}
-
-			if err := s.productRepo.ReduceStock(
-				tx,
-				item.ProductID,
-				item.Quantity,
-			); err != nil {
-				return err
-			}
 		}
 
 		// payment, err := buildDummyPayment(
@@ -406,17 +398,6 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 				err,
 			)
 		}
-
-		// ReduceStock milikmu sudah menggunakan transaction
-		// dan mengecek ketersediaan stok kembali.
-		if err := s.productRepo.ReduceStock(
-			tx,
-			product.ID,
-			request.Quantity,
-		); err != nil {
-			return err
-		}
-
 		// payment, err := buildDummyPayment(
 		// 	createdOrder,
 		// 	grandTotal,

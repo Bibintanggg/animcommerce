@@ -50,6 +50,7 @@ func (s *orderService) ExpireOrder(ctx context.Context, orderID int64, now time.
 		}
 
 		payment := payments[0]
+
 		if payment.Provider != "dummy" ||
 			payment.PaymentStatus != enum.PaymentPending ||
 			payment.PaidAt != nil ||
@@ -58,97 +59,16 @@ func (s *orderService) ExpireOrder(ctx context.Context, orderID int64, now time.
 			return nil
 		}
 
-		// 3. Ambil item order dari database.
-		// Urutan produk konsisten dengan penguncian pada checkout.
-		var items []models.OrderItem
-
-		if err := tx.
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("order_id = ?", order.ID).
-			Order("product_id ASC, id ASC").
-			Find(&items).Error; err != nil {
-			return fmt.Errorf("gagal membaca item order: %w", err)
-		}
-
-		if len(items) == 0 {
-			return errors.New("order tidak memiliki item")
-		}
-
-		// OrderItem.Quantity bertipe int64,
-		// sedangkan RestoreStock menerima int.
-		maxQuantity := int64(^uint(0) >> 1)
-
-		for _, item := range items {
-			if item.ProductID <= 0 ||
-				item.Quantity <= 0 ||
-				item.Quantity > maxQuantity {
-				return fmt.Errorf(
-					"data order item %d tidak valid",
-					item.ID,
-				)
-			}
-
-			// RestoreStock juga membuat StockMovement berjenis "in".
-			if err := s.productRepo.RestoreStock(
-				tx,
-				item.ProductID,
-				int(item.Quantity),
-			); err != nil {
-				return fmt.Errorf(
-					"gagal mengembalikan stok produk %d: %w",
-					item.ProductID,
-					err,
-				)
-			}
-		}
-
-		// 4. Tandai pembayaran sebagai expired.
-		result := tx.
-			Model(&models.Payment{}).
-			Where(
-				"id = ? AND payment_status = ?",
-				payment.ID,
-				enum.PaymentPending,
-			).
-			Update("payment_status", enum.PaymentExpired)
-
-		if result.Error != nil {
-			return result.Error
-		}
-
-		if result.RowsAffected != 1 {
-			return errors.New("gagal memperbarui status payment")
-		}
-
-		// 5. Batalkan order.
-		result = tx.
-			Model(&models.OrderProduct{}).
-			Where(
-				"id = ? AND status_order = ?",
-				order.ID,
-				enum.OrderPending,
-			).
-			Update("status_order", enum.OrderCancelled)
-
-		if result.Error != nil {
-			return result.Error
-		}
-
-		if result.RowsAffected != 1 {
-			return errors.New("gagal memperbarui status order")
-		}
-
-		// 6. Catat riwayat pembatalan.
-		history := models.OrderStatusHistory{
-			OrderID:        order.ID,
-			StatusOrder:    enum.OrderCancelled,
-			StatusShipment: order.StatusShipment,
-			Title:          "Pembayaran kedaluwarsa",
-			Description:    "Pesanan dibatalkan karena batas pembayaran terlewati. Stok dikembalikan.",
-		}
-
-		if err := tx.Create(&history).Error; err != nil {
-			return fmt.Errorf("gagal menyimpan riwayat pembatalan: %w", err)
+		if err := CancelPendingOrderTx(
+			tx,
+			s.productRepo,
+			&order,
+			&payment,
+			enum.PaymentExpired,
+			"Pembayaran kedaluwarsa",
+			"Pesanan dibatalkan karena batas pembayaran terlewati. Stok dikembalikan.",
+		); err != nil {
+			return err
 		}
 
 		expired = true

@@ -21,6 +21,8 @@ type Product struct {
 	Category enum.ProductCategory `json:"category" gorm:"default:tshirt"`
 	Sold     int                  `json:"sold" gorm:"default:0"`
 
+	Weight int64 `gorm:"not null, default:500"json:"weight"`
+
 	Reviews []Review      `json:"reviews" gorm:"foreignKey:ProductID"`
 	Size    []ProductSize `json:"size" gorm:"foreignKey:ProductID"`
 

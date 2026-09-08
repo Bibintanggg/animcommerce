@@ -11,4 +11,5 @@ type CreateProductRequest struct {
 	IsFeatured  bool    `form:"is_featured"`
 	Discount    string  `form:"discount"`
 	Sizes       string  `form:"sizes"`
+	Weight      int64   `json:"weight" binding:"required,min=1"`
 }
