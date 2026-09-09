@@ -28,6 +28,7 @@ export interface CartItem {
     price: number;
     stock: number;
     category: string;
+    weight: number
   };
 }
 

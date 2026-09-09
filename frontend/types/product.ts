@@ -18,6 +18,7 @@ export interface Product {
     is_active: ProductStatus;
     category: ProductCategory;
     sold: number;
+    weight: number;
     reviews: Review[];
     size: ProductSize[];
     wishlists: Wishlist[];

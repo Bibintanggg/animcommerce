@@ -48,7 +48,9 @@ const initialAddress: BuyNowAddress = {
     province: "",
     city: "",
     district: "",
+    subdistrict: "",
     postal_code: "",
+    destination_id: 0,
 };
 
 function formatRupiah(value: number) {
@@ -465,8 +467,8 @@ export default function BuyPage() {
                                                         setPaymentMethod("qris")
                                                     }
                                                     className={`relative rounded-2xl border-2 p-5 text-left transition ${paymentMethod === "qris"
-                                                            ? "border-[#BC002D] bg-red-50"
-                                                            : "border-gray-200 bg-white hover:border-gray-300"
+                                                        ? "border-[#BC002D] bg-red-50"
+                                                        : "border-gray-200 bg-white hover:border-gray-300"
                                                         }`}
                                                 >
                                                     {paymentMethod === "qris" && (
@@ -494,8 +496,8 @@ export default function BuyPage() {
                                                         setPaymentMethod("bca_va")
                                                     }
                                                     className={`relative rounded-2xl border-2 p-5 text-left transition ${paymentMethod === "bca_va"
-                                                            ? "border-[#BC002D] bg-red-50"
-                                                            : "border-gray-200 bg-white hover:border-gray-300"
+                                                        ? "border-[#BC002D] bg-red-50"
+                                                        : "border-gray-200 bg-white hover:border-gray-300"
                                                         }`}
                                                 >
                                                     {paymentMethod === "bca_va" && (

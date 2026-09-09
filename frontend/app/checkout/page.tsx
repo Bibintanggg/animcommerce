@@ -30,18 +30,11 @@ import { Badge } from "@/components/ui/badge";
 
 import ErrorModal from "@/components/ErrorModal";
 import { checkoutCart } from "@/services/order.service";
-import { CheckoutResult, PaymentMethod } from "@/types/checkout";
+import { CheckoutAddress, CheckoutResult, PaymentMethod } from "@/types/checkout";
 import PaymentInstructionModal from "@/components/PaymentInstructionModal";
+import { ShippingDestination, ShippingOption } from "@/types/shipping";
+import { calculateShippingCosts, searchShippingDestinations } from "@/services/shipping.service";
 
-interface CheckoutAddress {
-  receiver_name: string;
-  phone_number: string;
-  address_line: string;
-  province: string;
-  city: string;
-  district: string;
-  postal_code: string;
-}
 
 const initialAddress: CheckoutAddress = {
   receiver_name: "",
@@ -50,7 +43,9 @@ const initialAddress: CheckoutAddress = {
   province: "",
   city: "",
   district: "",
+  subdistrict: "",
   postal_code: "",
+  destination_id: 0,
 };
 
 function formatRupiah(value: number) {
@@ -70,6 +65,11 @@ export default function CartCheckoutPage() {
   const [selectionLoaded, setSelectionLoaded] = useState(false);
 
   const [address, setAddress] = useState<CheckoutAddress>(initialAddress);
+
+  const [destinationKeyword, setDestinationKeyword] = useState("");
+  const [destinationSearch, setDestinationSearch] = useState("");
+  const [selectedDestination, setSelectedDestination] = useState<ShippingDestination | null>(null);
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
 
   const [errorMessage, setErrorMessage] = useState("");
   const [paymentOrder, setPaymentOrder] = useState<CheckoutResult | null>(null);
@@ -112,6 +112,60 @@ export default function CartCheckoutPage() {
     return cart.filter((item) => selectedIds.includes(item.id));
   }, [cart, selectedIds]);
 
+  const totalWeight = useMemo(() => {
+    return selectedItems.reduce((total, item) => {
+      const weight = Number(item.product.weight);
+      const quantity = Number(item.quantity);
+
+      if (
+        !Number.isFinite(weight) ||
+        weight <= 0 ||
+        !Number.isFinite(quantity) ||
+        quantity <= 0
+      ) {
+        return total;
+      }
+
+      return total + weight * quantity;
+    }, 0);
+  }, [selectedItems]);
+  const {
+    data: destinations = [],
+    isFetching: isSearchingDestination,
+  } = useQuery({
+    queryKey: ["shipping-destinations", destinationSearch],
+    queryFn: () =>
+      searchShippingDestinations(destinationSearch),
+    enabled: destinationSearch.length >= 3,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
+  const {
+    data: shippingOptions = [],
+    isFetching: isCalculatingShipping,
+    isError: isShippingError,
+    error: shippingError,
+  } = useQuery({
+    queryKey: [
+      "shipping-costs",
+      selectedDestination?.id,
+      totalWeight,
+    ],
+    queryFn: () =>
+      calculateShippingCosts({
+        destination_id: selectedDestination!.id,
+        weight: totalWeight,
+      }),
+    enabled:
+      selectedDestination !== null &&
+      Number.isFinite(totalWeight) &&
+      totalWeight > 0,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
   const subtotal = useMemo(() => {
     return selectedItems.reduce(
       (total, item) => total + item.product.price * item.quantity,
@@ -119,10 +173,10 @@ export default function CartCheckoutPage() {
     );
   }, [selectedItems]);
 
-  const shippingCost =
-    selectedItems.length === 0 ? 0 : subtotal >= 500_000 ? 0 : 25_000;
-
+  const shippingCost = selectedShipping?.cost ?? 0;
   const grandTotal = subtotal + shippingCost;
+
+
 
   const checkoutMutation = useMutation({
     mutationFn: checkoutCart,
@@ -130,18 +184,20 @@ export default function CartCheckoutPage() {
     onSuccess: async (response) => {
       sessionStorage.removeItem("checkout_cart_item_ids");
 
-      await queryClient.invalidateQueries({ queryKey: ["get-cart"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["get-cart"],
+      });
 
       window.dispatchEvent(new Event("cart-updated"));
 
-      setPaymentMethod(response.data.payment_method);
+      setPaymentOrder(response.data);
     },
 
     onError: (error) => {
       if (axios.isAxiosError(error)) {
         setErrorMessage(
           error.response?.data?.message ??
-            "Checkout gagal. Silakan coba kembali.",
+          "Checkout gagal. Silakan coba kembali.",
         );
         return;
       }
@@ -149,6 +205,21 @@ export default function CartCheckoutPage() {
       setErrorMessage("Terjadi kesalahan ketika checkout.");
     },
   });
+
+  const selectDestination = (destination: ShippingDestination) => {
+    setSelectedDestination(destination);
+    setSelectedShipping(null);
+
+    setAddress((previous) => ({
+      ...previous,
+      province: destination.province_name,
+      city: destination.city_name,
+      district: destination.district_name,
+      subdistrict: destination.subdistrict_name,
+      postal_code: destination.zip_code,
+      destination_id: destination.id,
+    }));
+  };
 
   const updateAddress = (field: keyof CheckoutAddress, value: string) => {
     setAddress((previous) => ({
@@ -167,9 +238,23 @@ export default function CartCheckoutPage() {
       return;
     }
 
+    if (!selectedDestination) {
+      setErrorMessage("Pilih tujuan pengiriman.");
+      return;
+    }
+
+    if (!selectedShipping) {
+      setErrorMessage("Pilih layanan kurir.");
+      return;
+    }
+
     checkoutMutation.mutate({
       cart_item_ids: selectedItems.map((item) => item.id),
       address,
+      shipping: {
+        courier_code: selectedShipping.code,
+        service: selectedShipping.service,
+      },
       payment_method: paymentMethod,
     });
   };
@@ -287,28 +372,7 @@ export default function CartCheckoutPage() {
                         placeholder="08xxxxxxxxxx"
                       />
                     </div>
-                  </CardContent>
-                </Card>
 
-                {/* Alamat */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Badge
-                        variant="secondary"
-                        className="flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
-                      >
-                        2
-                      </Badge>
-                      Alamat Pengiriman
-                    </CardTitle>
-
-                    <CardDescription>
-                      Alamat lengkap tempat paket akan dikirim.
-                    </CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="address_line">
                         Alamat Lengkap{" "}
@@ -328,6 +392,28 @@ export default function CartCheckoutPage() {
                         placeholder="Nama jalan, nomor rumah, RT/RW, patokan..."
                       />
                     </div>
+                  </CardContent>
+                </Card>
+
+                {/* Alamat */}
+                {/* <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Badge
+                        variant="secondary"
+                        className="flex h-6 w-6 items-center justify-center rounded-full p-0 text-xs"
+                      >
+                        2
+                      </Badge>
+                      Alamat Pengiriman
+                    </CardTitle>
+
+                    <CardDescription>
+                      Alamat lengkap tempat paket akan dikirim.
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
@@ -424,9 +510,230 @@ export default function CartCheckoutPage() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>
+                </Card> */}
 
                 {/* Payment */}
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      Pilihan Pengiriman
+                    </CardTitle>
+
+                    <CardDescription>
+                      Cari kelurahan tujuan dan pilih layanan kurir.
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    <div className="flex gap-2">
+                      <Input
+                        value={destinationKeyword}
+                        onChange={(event) =>
+                          setDestinationKeyword(event.target.value)
+                        }
+                        placeholder="Contoh: Pisangan Timur"
+                      />
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={
+                          destinationKeyword.trim().length < 3 ||
+                          isSearchingDestination
+                        }
+                        onClick={() => {
+                          setDestinationSearch(
+                            destinationKeyword.trim(),
+                          );
+                          setSelectedDestination(null);
+                          setSelectedShipping(null);
+                        }}
+                      >
+                        {isSearchingDestination ? "Mencari..." : "Cari"}
+                      </Button>
+                    </div>
+
+                    {destinations.length > 0 && !selectedDestination && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">
+                          Pilih tujuan pengiriman:
+                        </p>
+
+                        {destinations.map((destination) => (
+                          <button
+                            key={destination.id}
+                            type="button"
+                            onClick={() => selectDestination(destination)}
+                            className="w-full rounded-lg border p-3 text-left text-sm hover:border-primary hover:bg-muted"
+                          >
+                            {destination.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedDestination && (
+                      <div className="rounded-lg border bg-muted/40 p-3">
+                        <p className="text-sm font-medium">Tujuan dipilih</p>
+
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {selectedDestination.label}
+                        </p>
+
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Total berat: {totalWeight} gram
+                        </p>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="mt-2"
+                          onClick={() => {
+                            setSelectedDestination(null);
+                            setSelectedShipping(null);
+                          }}
+                        >
+                          Ganti tujuan
+                        </Button>
+                      </div>
+                    )}
+
+                    {isCalculatingShipping && (
+                      <p className="text-sm text-muted-foreground">
+                        Mengambil pilihan kurir...
+                      </p>
+                    )}
+
+                    {selectedDestination &&
+                      !isCalculatingShipping &&
+                      shippingOptions.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">
+                            Pilih layanan kurir:
+                          </p>
+
+                          {shippingOptions.map((option) => {
+                            const selected =
+                              selectedShipping?.code === option.code &&
+                              selectedShipping?.service === option.service;
+
+                            return (
+                              <button
+                                key={`${option.code}-${option.service}-${option.cost}`}
+                                type="button"
+                                onClick={() => setSelectedShipping(option)}
+                                className={`w-full rounded-lg border-2 p-3 text-left ${selected
+                                    ? "border-primary bg-accent/30"
+                                    : "border-border hover:border-primary"
+                                  }`}
+                              >
+                                <div className="flex justify-between gap-4">
+                                  <div>
+                                    <p className="font-medium">
+                                      {option.name} — {option.service}
+                                    </p>
+
+                                    <p className="text-xs text-muted-foreground">
+                                      {option.description}
+                                      {option.etd
+                                        ? ` • Estimasi ${option.etd}`
+                                        : ""}
+                                    </p>
+                                  </div>
+
+                                  <p className="font-semibold">
+                                    {formatRupiah(option.cost)}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                    {selectedDestination && (
+                      <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                        <p className="font-medium">Tujuan dipilih</p>
+                        <p className="mt-1 text-muted-foreground">
+                          {selectedDestination.label}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Total berat: {totalWeight} gram
+                        </p>
+                      </div>
+                    )}
+
+                    {isCalculatingShipping && (
+                      <p className="text-sm text-muted-foreground">
+                        Menghitung ongkir...
+                      </p>
+                    )}
+
+                    {isShippingError && (
+                      <p className="text-sm text-destructive">
+                        {axios.isAxiosError(shippingError)
+                          ? shippingError.response?.data?.message ??
+                          "Gagal menghitung ongkir."
+                          : "Gagal menghitung ongkir."}
+                      </p>
+                    )}
+
+                    {selectedDestination &&
+                      !isCalculatingShipping &&
+                      !isShippingError &&
+                      shippingOptions.length === 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          Tidak ada layanan pengiriman yang tersedia.
+                        </p>
+                      )}
+
+                    {shippingOptions.length > 0 && (
+                      <div className="space-y-2">
+                        {shippingOptions.map((option) => {
+                          const optionKey =
+                            `${option.code}:${option.service}:${option.cost}`;
+
+                          const selected =
+                            selectedShipping?.code === option.code &&
+                            selectedShipping?.service === option.service &&
+                            selectedShipping?.cost === option.cost;
+
+                          return (
+                            <button
+                              key={optionKey}
+                              type="button"
+                              onClick={() => setSelectedShipping(option)}
+                              className={`w-full rounded-lg border-2 p-3 text-left ${selected
+                                ? "border-primary bg-accent/30"
+                                : "border-border"
+                                }`}
+                            >
+                              <div className="flex justify-between gap-4">
+                                <div>
+                                  <p className="font-medium">
+                                    {option.name} — {option.service}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {option.description}
+                                    {option.etd
+                                      ? ` • Estimasi ${option.etd}`
+                                      : ""}
+                                  </p>
+                                </div>
+
+                                <p className="font-semibold">
+                                  {formatRupiah(option.cost)}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardContent>
                     <fieldset
@@ -438,11 +745,10 @@ export default function CartCheckoutPage() {
                       </legend>
 
                       <label
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 ${
-                          paymentMethod === "qris"
-                            ? "border-primary bg-accent/30"
-                            : "border-border"
-                        }`}
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 ${paymentMethod === "qris"
+                          ? "border-primary bg-accent/30"
+                          : "border-border"
+                          }`}
                       >
                         <input
                           type="radio"
@@ -462,11 +768,10 @@ export default function CartCheckoutPage() {
                       </label>
 
                       <label
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 ${
-                          paymentMethod === "bca_va"
-                            ? "border-primary bg-accent/30"
-                            : "border-border"
-                        }`}
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 ${paymentMethod === "bca_va"
+                          ? "border-primary bg-accent/30"
+                          : "border-border"
+                          }`}
                       >
                         <input
                           type="radio"
@@ -549,9 +854,9 @@ export default function CartCheckoutPage() {
                         <span className="text-muted-foreground">Ongkir</span>
 
                         <span>
-                          {shippingCost === 0
-                            ? "Gratis"
-                            : formatRupiah(shippingCost)}
+                          {!selectedShipping
+                            ? "Pilih pengiriman"
+                            : formatRupiah(selectedShipping?.cost ?? 0)}
                         </span>
                       </div>
                     </div>
@@ -576,7 +881,11 @@ export default function CartCheckoutPage() {
                       type="submit"
                       size="lg"
                       className="w-full"
-                      disabled={checkoutMutation.isPending}
+                      disabled={
+                        checkoutMutation.isPending ||
+                        selectedDestination === null ||
+                        selectedShipping === null
+                      }
                     >
                       {checkoutMutation.isPending
                         ? "Memproses..."

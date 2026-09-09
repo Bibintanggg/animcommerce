@@ -7,24 +7,40 @@ interface ProductResponse {
     message: string;
 }
 
-export const getCart = async (): Promise<CartItem[]> => {
-    const response = await api.get("/cart");
+interface CartApiItem {
+    ID: number;
+    CartID: number;
+    ProductID: number;
+    Product: {
+        id: number;
+        title: string;
+        thumbnail: string;
+        slug: string;
+        price: number;
+        stock: number;
+        weight: number;
+    };
+    Quantity: number;
+}
 
-    return response.data.data.map((item: any) => ({
+export async function getCart() {
+    const response = await api.get<{
+        data: CartApiItem[];
+        message: string;
+    }>("/cart");
+
+    return response.data.data.map((item) => ({
         id: item.ID,
+        cart_id: item.CartID,
+        product_id: item.ProductID,
         quantity: item.Quantity,
+
         product: {
-            id: item.Product.id,
-            title: item.Product.title,
-            thumbnail: item.Product.thumbnail,
-            slug: item.Product.slug,
-            description: item.Product.description,
-            price: item.Product.price,
-            stock: item.Product.stock,
-            category: item.Product.category,
+            ...item.Product,
+            weight: Number(item.Product.weight),
         },
     }));
-};
+}
 
 export const addToCart = async (payload: AddToCartRequest) => {
     const response = await api.post("/cart", payload)
@@ -32,9 +48,9 @@ export const addToCart = async (payload: AddToCartRequest) => {
 }
 
 export const updateCartQuantity = async (payload: UpdateCartQuantityRequest) => {
-	const response = await api.put(`/cart/${payload.product_id}`, {
-		quantity: payload.quantity,
-	})
+    const response = await api.put(`/cart/${payload.product_id}`, {
+        quantity: payload.quantity,
+    })
     return response.data
 }
 

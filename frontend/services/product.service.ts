@@ -36,8 +36,7 @@ export const getProducts = async (
   });
 
   const total = response.data.total;
-  // console.log("PRODUCTS:", response.data.data);
-
+  
   return {
     data: response.data.data,
     total,

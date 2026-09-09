@@ -25,18 +25,27 @@ export interface CheckoutAddress {
   province: string;
   city: string;
   district: string;
+  subdistrict: string;
   postal_code: string;
+  destination_id: number;
+}
+
+export interface CheckoutShipping {
+  courier_code: string;
+  service: string;
 }
 
 export interface CheckoutPayload {
   cart_item_ids: number[];
   address: CheckoutAddress;
+  shipping: CheckoutShipping;
   payment_method: PaymentMethod;
 }
 
 export interface CheckoutProductPayload {
   quantity: number;
   address: CheckoutAddress;
+  shipping: CheckoutShipping;
   payment_method: PaymentMethod;
 }
 
