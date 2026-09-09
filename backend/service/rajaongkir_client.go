@@ -60,23 +60,35 @@ type shippingCostResponse struct {
 type RajaOngkirClient struct {
 	baseURL    string
 	apiKey     string
+	originID   int64
 	httpClient *http.Client
 }
 
 func NewRajaOngkirClient() (*RajaOngkirClient, error) {
-	apiKey := strings.TrimSpace(os.Getenv("RAJAONGKIR_API_KEY"))
+	originID, err := strconv.ParseInt(strings.TrimSpace(os.Getenv("RAJAONGKIR_ORIGIN_ID")), 10, 64)
+	if err != nil || originID <= 0 {
+		return nil, errors.New("RAJAONGKIR_ORIGIN_ID tidak valid")
+	}
+	apiKey := strings.TrimSpace(
+		os.Getenv("RAJAONGKIR_API_KEY"),
+	)
 	if apiKey == "" {
-		return nil, errors.New("RAJAONGKIR_API_KEY wajib diisi")
+		return nil, errors.New(
+			"RAJAONGKIR_API_KEY wajib diisi",
+		)
 	}
 
-	baseURL := strings.TrimSpace(os.Getenv("RAJAONGKIR_BASE_URL"))
+	baseURL := strings.TrimSpace(
+		os.Getenv("RAJAONGKIR_BASE_URL"),
+	)
 	if baseURL == "" {
 		baseURL = "https://rajaongkir.komerce.id/api/v1"
 	}
 
 	return &RajaOngkirClient{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		apiKey:  apiKey,
+		baseURL:  strings.TrimRight(baseURL, "/"),
+		originID: originID,
+		apiKey:   apiKey,
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
@@ -91,7 +103,7 @@ func (c *RajaOngkirClient) execute(
 	output any,
 ) error {
 	request, err := http.NewRequestWithContext(
-		ctx, method, endpoint, body,
+		ctx, method, c.baseURL+endpoint, body,
 	)
 	if err != nil {
 		return fmt.Errorf("gagal memuat request rajaongkir: %w", err)
@@ -108,8 +120,6 @@ func (c *RajaOngkirClient) execute(
 	if err != nil {
 		return fmt.Errorf("gagal menghubungi RajaOngkir: %w", err)
 	}
-
-	defer response.Body.Close().Error()
 
 	defer response.Body.Close()
 
@@ -149,7 +159,7 @@ func (c *RajaOngkirClient) SearchDestinations(ctx context.Context, search string
 	}
 
 	query := url.Values{}
-	query.Set("Search", search)
+	query.Set("search", search)
 	query.Set("limit", "10")
 	query.Set("offset", "0")
 

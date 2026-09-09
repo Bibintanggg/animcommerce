@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -32,8 +33,8 @@ func mapPaymentInstruction(
 
 type OrderService interface {
 	GetAllOrders(filter dto.OrderFilter) ([]models.OrderProduct, int64, error)
-	CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.CheckoutResponse, error)
-	CheckoutProduct(userID int64, slug string, request dto.CheckoutProductRequest) (dto.CheckoutResponse, error)
+	CheckoutCart(ctx context.Context, userID int64, req dto.CheckoutRequest) (dto.CheckoutResponse, error)
+	CheckoutProduct(ctx context.Context, userID int64, slug string, request dto.CheckoutProductRequest) (dto.CheckoutResponse, error)
 	GetMyOrders(userID int64) ([]models.OrderProduct, error)
 	GetOrderDetail(userID int64, orderID int64) (*models.OrderProduct, error)
 	GetAdminOrderDetail(orderID int64) (*models.OrderProduct, error)
@@ -52,15 +53,7 @@ type orderService struct {
 	addressRepo     repository.UserAddressRepository
 	invoiceService  InvoiceService
 	paymentGateway  PaymentGateway
-}
-
-// helper
-func calculateShippingCost(subtotal int64) int64 {
-	if subtotal >= 500_000 {
-		return 0
-	}
-
-	return 25_000
+	shippingClient  *RajaOngkirClient
 }
 
 func createInitialOrderHistory(
@@ -87,7 +80,7 @@ func createInitialOrderHistory(
 
 func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, orderItemRepo repository.OrderItemRepository,
 	cartRepo repository.CartRepository, cartProductRepo repository.CartProductRepository, productRepo repository.ProductRepository,
-	addressRepo repository.UserAddressRepository, invoiceService InvoiceService, paymentGateway PaymentGateway) OrderService {
+	addressRepo repository.UserAddressRepository, invoiceService InvoiceService, paymentGateway PaymentGateway, shippingClient *RajaOngkirClient) OrderService {
 	return &orderService{
 		db:            db,
 		orderRepo:     orderRepo,
@@ -100,6 +93,7 @@ func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, orderIte
 		addressRepo:    addressRepo,
 		invoiceService: invoiceService,
 		paymentGateway: paymentGateway,
+		shippingClient: shippingClient,
 	}
 }
 
@@ -112,7 +106,7 @@ func (s *orderService) GetAllOrders(filter dto.OrderFilter) ([]models.OrderProdu
 	return orders, total, nil
 }
 
-func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.CheckoutResponse, error) {
+func (s *orderService) CheckoutCart(ctx context.Context, userID int64, req dto.CheckoutRequest) (dto.CheckoutResponse, error) {
 	var response dto.CheckoutResponse
 	var createdOrder models.OrderProduct
 
@@ -127,7 +121,50 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 		uniqueIDs[itemID] = struct{}{}
 	}
 
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	cartPreview, err := s.cartRepo.GetCartByUserID(userID)
+	if err != nil {
+		return response, errors.New("cart tidak ditemukan")
+	}
+
+	previewItems, err :=
+		s.cartProductRepo.GetCartItemsByIDs(
+			s.db.WithContext(ctx),
+			cartPreview.ID,
+			req.CartItemIDs,
+		)
+	if err != nil {
+		return response, err
+	}
+
+	if len(previewItems) != len(req.CartItemIDs) {
+		return response,
+			errors.New("sebagian item cart tidak valid")
+	}
+
+	var quotedWeight int64
+
+	for _, item := range previewItems {
+		if item.Quantity <= 0 ||
+			item.Product.Weight <= 0 {
+			return response,
+				errors.New("berat atau quantity produk tidak valid")
+		}
+
+		quotedWeight +=
+			item.Product.Weight * int64(item.Quantity)
+	}
+
+	shippingOption, err := s.resolveShippingOption(
+		ctx,
+		req.Address.DestinationID,
+		quotedWeight,
+		req.Shipping,
+	)
+	if err != nil {
+		return response, err
+	}
+
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		cart, err := s.cartRepo.GetCartByUserID(userID)
 		if err != nil {
 			return errors.New("cart tidak ditemukan")
@@ -157,6 +194,9 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 			District:     req.Address.District,
 			PostalCode:   req.Address.PostalCode,
 			IsDefault:    false,
+
+			Subdistrict:   req.Address.Subdistrict,
+			DestinationID: req.Address.DestinationID,
 		}
 
 		if err := tx.Create(&address).Error; err != nil {
@@ -164,10 +204,18 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 		}
 
 		var subtotal int64
+		var currentWeight int64
 
 		for _, item := range cartItems {
 			if item.Quantity <= 0 {
 				return errors.New("quantity produk tidak valid")
+			}
+
+			if item.Product.Weight <= 0 {
+				return fmt.Errorf(
+					"berat produk %s tidak valid",
+					item.Product.Title,
+				)
 			}
 
 			if item.Product.Stock < item.Quantity {
@@ -177,10 +225,20 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 				)
 			}
 
-			subtotal += int64(item.Product.Price) * int64(item.Quantity)
+			subtotal +=
+				int64(item.Product.Price) *
+					int64(item.Quantity)
+
+			currentWeight +=
+				item.Product.Weight *
+					int64(item.Quantity)
 		}
 
-		shippingCost := calculateShippingCost(subtotal)
+		if currentWeight != quotedWeight {
+			return errors.New("data cart berubah, silakan hitung ulang ongkir")
+		}
+
+		shippingCost := shippingOption.Cost
 		grandTotal := subtotal + shippingCost
 
 		orderNumber, err := helper.GenerateOrder()
@@ -189,14 +247,15 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 		}
 
 		createdOrder = models.OrderProduct{
-			OrderNumber:  orderNumber,
-			UserID:       userID,
-			AddressID:    address.ID,
-			TotalPrice:   subtotal,
-			ShippingCost: shippingCost,
-
-			Courier:        "",
-			TrackingNumber: "",
+			OrderNumber:     orderNumber,
+			UserID:          userID,
+			AddressID:       address.ID,
+			TotalPrice:      subtotal,
+			ShippingCost:    shippingOption.Cost,
+			Courier:         shippingOption.Code,
+			ShippingService: shippingOption.Service,
+			ShippingETD:     shippingOption.ETD,
+			TrackingNumber:  "",
 
 			StatusOrder:    enum.OrderPending,
 			StatusShipment: enum.ShipmentAwaitingPickup,
@@ -300,7 +359,7 @@ func (s *orderService) CheckoutCart(userID int64, req dto.CheckoutRequest) (dto.
 	return response, nil
 }
 
-func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.CheckoutProductRequest) (dto.CheckoutResponse, error) {
+func (s *orderService) CheckoutProduct(ctx context.Context, userID int64, slug string, request dto.CheckoutProductRequest) (dto.CheckoutResponse, error) {
 	var response dto.CheckoutResponse
 	var createdOrder models.OrderProduct
 
@@ -308,7 +367,26 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 		return response, errors.New("quantity produk tidak valid")
 	}
 
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	previewProduct, err := s.productRepo.FindBySlug(slug)
+	if err != nil {
+		return response, errors.New("produk tidak ditemukan")
+	}
+
+	if previewProduct.Weight <= 0 {
+		return response, errors.New("berat produk tidak valid")
+	}
+
+	quotedWeight := previewProduct.Weight * int64(request.Quantity)
+
+	shippingOption, err := s.resolveShippingOption(
+		ctx, request.Address.DestinationID, quotedWeight, request.Shipping,
+	)
+
+	if err != nil {
+		return response, err
+	}
+
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Harga dan stok diambil dari database berdasarkan slug.
 		product, err := s.productRepo.FindBySlug(slug)
 		if err != nil {
@@ -327,6 +405,21 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 			)
 		}
 
+		currentWeight := product.Weight * int64(request.Quantity)
+
+		if currentWeight != quotedWeight {
+			return errors.New("data produk berubah, silakan hitung ulang ongkir")
+		}
+
+		subtotal := int64(product.Price) * int64(request.Quantity)
+
+		shippingCost := shippingOption.Cost
+		grandTotal := subtotal + shippingCost
+		orderNumber, err := helper.GenerateOrder()
+		if err != nil {
+			return fmt.Errorf("Gagal memuat nomor pesanan: %w", err)
+		}
+
 		address := models.UserAddress{
 			UserID:       userID,
 			ReceiverName: request.Address.ReceiverName,
@@ -337,6 +430,9 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 			District:     request.Address.District,
 			PostalCode:   request.Address.PostalCode,
 			IsDefault:    false,
+
+			Subdistrict:   request.Address.Subdistrict,
+			DestinationID: request.Address.DestinationID,
 		}
 
 		if err := tx.Create(&address).Error; err != nil {
@@ -346,29 +442,16 @@ func (s *orderService) CheckoutProduct(userID int64, slug string, request dto.Ch
 			)
 		}
 
-		// Harga selalu dihitung dari database.
-		subtotal := int64(product.Price) * int64(request.Quantity)
-
-		shippingCost := int64(25_000)
-
-		if subtotal >= 500_000 {
-			shippingCost = 0
-		}
-
-		grandTotal := subtotal + shippingCost
-		orderNumber, err := helper.GenerateOrder()
-		if err != nil {
-			return fmt.Errorf("Gagal memuat nomor pesanan: %w", err)
-		}
-
 		createdOrder = models.OrderProduct{
-			OrderNumber:    orderNumber,
-			UserID:         userID,
-			AddressID:      address.ID,
-			TotalPrice:     subtotal,
-			ShippingCost:   shippingCost,
-			Courier:        "",
-			TrackingNumber: "",
+			OrderNumber:     orderNumber,
+			UserID:          userID,
+			AddressID:       address.ID,
+			TotalPrice:      subtotal,
+			ShippingCost:    shippingOption.Cost,
+			Courier:         shippingOption.Code,
+			ShippingService: shippingOption.Service,
+			ShippingETD:     shippingOption.ETD,
+			TrackingNumber:  "",
 
 			StatusOrder:    enum.OrderPending,
 			StatusShipment: enum.ShipmentAwaitingPickup,
@@ -521,6 +604,41 @@ func (s *orderService) UpdateOrderStatus(orderID int64, req dto.UpdateOrderStatu
 	}
 
 	return s.orderRepo.Update(order)
+}
+
+func (s *orderService) resolveShippingOption(ctx context.Context, destinationID int64, totalWeight int64, selection dto.CheckoutShippingRequest) (ShippingOption, error) {
+	var empty ShippingOption
+
+	if s.shippingClient == nil {
+		return empty, errors.New("shipping client belum diinisialisasi")
+	}
+
+	options, err := s.shippingClient.CalculateDomesticCost(
+		ctx, CalculateShippingInput{
+			OriginID:      s.shippingClient.originID,
+			DestinationID: destinationID,
+			Weight:        totalWeight,
+			Couriers:      selection.CourierCode,
+		},
+	)
+
+	if err != nil {
+		return empty, fmt.Errorf("gagal memverifikasi ongkir: %w", err)
+	}
+
+	for _, option := range options {
+		if strings.EqualFold(
+			option.Code,
+			selection.CourierCode,
+		) && strings.EqualFold(
+			option.Service,
+			selection.Service,
+		) {
+			return option, nil
+		}
+	}
+
+	return empty, errors.New("layanan pengiriman tidak tersedia")
 }
 
 func isValidOrderStatus(status string) bool {

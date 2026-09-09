@@ -90,7 +90,7 @@ func (h *OrderHandler) CheckoutCart(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.CheckoutCart(userID, request)
+	result, err := h.service.CheckoutCart(c.Request.Context(), userID, request)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -152,6 +152,7 @@ func (h *OrderHandler) CheckoutProduct(c *gin.Context) {
 	}
 
 	result, err := h.service.CheckoutProduct(
+		c.Request.Context(),
 		userID,
 		slug,
 		request,

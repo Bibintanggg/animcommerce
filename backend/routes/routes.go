@@ -73,6 +73,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary, pushNot
 	paymentWebhookService := service.NewPaymentWebhookService(db, paymentGateway, productRepository)
 	paymentWebhookHandler := handler.NewPaymentWebhookHandler(paymentWebhookService)
 
+	rajaOngkirClient, err := service.NewRajaOngkirClient()
+	if err != nil {
+		panic(err)
+	}
+
+	shippingHandler, err := handler.NewShippingHandler(rajaOngkirClient)
+	if err != nil {
+		panic(err)
+	}
+
 	orderRepository := repository.NewOrderRepository(db)
 	invoiceService := service.NewInvoiceService(orderRepository, db)
 	orderItemRepository := repository.NewOrderItemRepository(db)
@@ -88,6 +98,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary, pushNot
 		addressRepository,
 		invoiceService,
 		paymentGateway,
+		rajaOngkirClient,
 	)
 	orderHandler := handler.NewOrderHandler(orderService, notificationService)
 
@@ -108,6 +119,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cld *cloudinary.Cloudinary, pushNot
 
 		reviewRoute := customer.NewReviewRoute(api, auth, reviewHandler)
 		reviewRoute.Register()
+
+		auth.GET("/shipping/destinations", shippingHandler.SearchDestinations)
+		auth.POST("/shipping/costs", shippingHandler.CalculateCost)
 
 		{
 			cartRoute := customer.NewCartRoute(auth, cartHandler)

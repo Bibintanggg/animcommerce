@@ -3,19 +3,22 @@ package order
 import "time"
 
 type CheckoutAddressRequest struct {
-	ReceiverName string `json:"receiver_name" binding:"required,min=2,max=100"`
-	PhoneNumber  string `json:"phone_number" binding:"required,min=10,max=20"`
-	AddressLine  string `json:"address_line" binding:"required,min=10,max=500"`
-	Province     string `json:"province" binding:"required,max=100"`
-	City         string `json:"city" binding:"required,max=100"`
-	District     string `json:"district" binding:"required,max=100"`
-	PostalCode   string `json:"postal_code" binding:"required,len=5"`
+	ReceiverName  string `json:"receiver_name" binding:"required,min=2,max=100"`
+	PhoneNumber   string `json:"phone_number" binding:"required,min=10,max=20"`
+	AddressLine   string `json:"address_line" binding:"required,min=10,max=500"`
+	Province      string `json:"province" binding:"required,max=100"`
+	City          string `json:"city" binding:"required,max=100"`
+	District      string `json:"district" binding:"required,max=100"`
+	Subdistrict   string `json:"subdistrict" binding:"required,max=100"`
+	PostalCode    string `json:"postal_code" binding:"required,len=5"`
+	DestinationID int64  `json:"destination_id" binding:"required,gt=0"`
 }
 
 type CheckoutRequest struct {
-	CartItemIDs   []int64                `json:"cart_item_ids" binding:"required,min=1,dive,gt=0"`
-	Address       CheckoutAddressRequest `json:"address" binding:"required"`
-	PaymentMethod string                 `json:"payment_method" binding:"required,oneof=qris bca_va"`
+	CartItemIDs   []int64                 `json:"cart_item_ids" binding:"required,min=1,dive,gt=0"`
+	Address       CheckoutAddressRequest  `json:"address" binding:"required"`
+	Shipping      CheckoutShippingRequest `json:"shipping" binding:"required"`
+	PaymentMethod string                  `json:"payment_method" binding:"required,oneof=qris bca_va"`
 }
 
 type CheckoutResponse struct {
@@ -36,4 +39,9 @@ type PaymentInstructionResponse struct {
 	VANumber  string     `json:"va_number,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 	QRURL     string     `json:"qr_url,omitempty"`
+}
+
+type CheckoutShippingRequest struct {
+	CourierCode string `json:"courier_code" binding:"required,oneof=jne sicepat jnt tiki anteraja"`
+	Service     string `json:"service" binding:"required,min=1,max=50"`
 }

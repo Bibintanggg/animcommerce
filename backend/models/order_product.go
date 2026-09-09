@@ -22,6 +22,8 @@ type OrderProduct struct {
 	StatusShipment  enum.ShipmentStatus  `json:"status_shipment"`
 	TrackingNumber  string               `gorm:"type:varchar(100)" json:"tracking_number,omitempty"`
 	Courier         string               `gorm:"type:varchar(50)" json:"courier,omitempty"`
+	ShippingService string               `gorm:"type:varchar(50)" json:"shipping_service"`
+	ShippingETD     string               `gorm:"type:varchar(50)" json:"shipping_etd"`
 	ShippedAt       *time.Time           `json:"shipped_at,omitempty"`
 	CompletedAt     *time.Time           `json:"completed_at,omitempty"`
 	CreatedAt       time.Time            `json:"created_at"`
